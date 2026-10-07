@@ -31,6 +31,10 @@ export const Login = () => {
     setPassword('ksstore2026');
   };
 
+  const handleUseSaulAdmin = () => {
+    setEmail('sauladmin@ksstore.org');
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Luces sutiles de fondo */}
@@ -111,19 +115,30 @@ export const Login = () => {
           </button>
         </form>
 
-        {/* Acceso Rápido para Desarrollo / Administrador */}
-        <div className="p-3.5 rounded-xl bg-zinc-950/90 border border-zinc-800 text-[11px] text-zinc-400 space-y-1.5">
+        {/* Acceso Rápido para Administrador */}
+        <div className="p-3.5 rounded-xl bg-zinc-950/90 border border-zinc-800 text-[11px] text-zinc-400 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="font-semibold text-zinc-300">Credenciales por defecto:</span>
+            <span className="font-semibold text-emerald-400">Tu usuario en Supabase:</span>
+            <button
+              type="button"
+              onClick={handleUseSaulAdmin}
+              className="text-white hover:underline font-bold"
+            >
+              Usar correo
+            </button>
+          </div>
+          <p className="font-mono text-zinc-300">sauladmin@ksstore.org</p>
+          <hr className="border-zinc-800/80 my-1" />
+          <div className="flex items-center justify-between text-zinc-500">
+            <span>Acceso demo de respaldo:</span>
             <button
               type="button"
               onClick={handleUseDemo}
-              className="text-white hover:underline font-bold"
+              className="text-zinc-400 hover:text-white underline text-[10px]"
             >
               Autocompletar
             </button>
           </div>
-          <p className="font-mono text-zinc-400">admin@ksstore.com / ksstore2026</p>
         </div>
 
         <div className="text-center">

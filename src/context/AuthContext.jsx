@@ -70,6 +70,17 @@ export const AuthProvider = ({ children }) => {
         email: data.user.email,
         role: 'admin',
       };
+
+      try {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          email: data.user.email,
+          role: 'admin',
+        });
+      } catch {
+        // Ignorar si ya existe
+      }
+
       setUser(adminUser);
       localStorage.setItem(STORAGE_AUTH_KEY, JSON.stringify(adminUser));
       return adminUser;
