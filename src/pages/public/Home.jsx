@@ -24,6 +24,10 @@ export const Home = () => {
   const featuredSneakers = products.filter((p) => p.category === 'tenis').slice(0, 4);
   const trendingDrops = products.filter((p) => p.is_new).slice(0, 8);
 
+  // Producto destacado para el showcase Hero (sincronizado dinámicamente)
+  const heroProduct = products.find((p) => p.sku === 'KS-G001') || products.find((p) => p.featured) || products[0];
+  const secondaryHeroProduct = products.find((p) => p.sku === 'KS-G002') || products[1];
+
   return (
     <div className="space-y-20 sm:space-y-28 pb-16">
       
@@ -98,8 +102,8 @@ export const Home = () => {
                 {/* Marco de Fotografía Principal */}
                 <div className="relative aspect-3/4 rounded-3xl overflow-hidden border-2 border-zinc-700/80 shadow-2xl shadow-black/80 bg-zinc-900 group">
                   <img
-                    src="/images/products/gorras/IMG-20261006-WA0083.jpg"
-                    alt="Gorra Rico o Muerto Red Rhinestone KS Store"
+                    src={heroProduct?.main_image || "/images/products/gorras/IMG-20261006-WA0083.jpg"}
+                    alt={heroProduct?.name || "KS Store Edición Destacada"}
                     className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
                   />
                   
@@ -109,19 +113,21 @@ export const Home = () => {
                   <div className="absolute bottom-5 inset-x-5 p-4 rounded-2xl bg-zinc-950/85 backdrop-blur-md border border-zinc-700/80">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400">
-                        Edición Destacada
+                        {heroProduct?.is_new ? 'Nuevo Lanzamiento' : 'Edición Destacada'}
                       </span>
                       <span className="text-xs px-2 py-0.5 rounded-full bg-rose-600/30 text-rose-300 font-bold border border-rose-500/40">
-                        Pedrería Fina
+                        {heroProduct?.brand || 'Pedrería Fina'}
                       </span>
                     </div>
                     <p className="font-extrabold text-white text-base mt-1 line-clamp-1">
-                      Rico o Muerto Red Rhinestone
+                      {heroProduct?.name || 'Rico o Muerto Red Rhinestone'}
                     </p>
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800">
-                      <span className="text-white font-extrabold text-sm">L. 950.00</span>
+                      <span className="text-white font-extrabold text-sm">
+                        L. {Number(heroProduct?.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
                       <Link
-                        to="/producto/gorra-rico-o-muerto-red-rhinestone"
+                        to={`/producto/${heroProduct?.slug || heroProduct?.id || 'gorra-rico-o-muerto-red-rhinestone'}`}
                         className="text-xs font-bold text-zinc-300 hover:text-white flex items-center gap-1"
                       >
                         Ver detalles <ArrowRight className="w-3 h-3" />
@@ -145,13 +151,19 @@ export const Home = () => {
                 </div>
 
                 {/* Miniatura Flotante Derecha */}
-                <div className="hidden sm:block absolute -bottom-6 -right-6 w-32 aspect-3/4 rounded-2xl overflow-hidden border-2 border-zinc-700 shadow-2xl bg-zinc-900">
-                  <img
-                    src="/images/products/gorras/IMG-20261006-WA0084.jpg"
-                    alt="LA Dodgers Suede KS Store"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
+                {secondaryHeroProduct && (
+                  <Link
+                    to={`/producto/${secondaryHeroProduct.slug || secondaryHeroProduct.id}`}
+                    className="hidden sm:block absolute -bottom-6 -right-6 w-32 aspect-3/4 rounded-2xl overflow-hidden border-2 border-zinc-700 shadow-2xl bg-zinc-900 group hover:scale-105 transition-transform"
+                    title={secondaryHeroProduct.name}
+                  >
+                    <img
+                      src={secondaryHeroProduct.main_image || "/images/products/gorras/IMG-20261006-WA0084.jpg"}
+                      alt={secondaryHeroProduct.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </Link>
+                )}
 
               </div>
             </div>
