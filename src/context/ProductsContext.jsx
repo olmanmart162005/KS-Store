@@ -104,6 +104,9 @@ export const ProductsProvider = ({ children }) => {
         if (!sError && dbSettings) {
           setSettings({
             ...dbSettings,
+            whatsapp_number: (!dbSettings.whatsapp_number || dbSettings.whatsapp_number === '89692971')
+              ? (import.meta.env.VITE_WHATSAPP_NUMBER || '88761389')
+              : dbSettings.whatsapp_number,
             instagram_url: (!dbSettings.instagram_url || dbSettings.instagram_url === 'https://instagram.com/ksstore')
               ? (import.meta.env.VITE_INSTAGRAM_URL || 'https://www.instagram.com/ks.store_hn')
               : dbSettings.instagram_url,

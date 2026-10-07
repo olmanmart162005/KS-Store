@@ -70,16 +70,26 @@ export const TenisAdmin = () => {
       </div>
 
       {/* Buscador Fijo (Sticky) */}
-      <div className="sticky top-16 sm:top-20 z-20 bg-zinc-950/95 backdrop-blur-md py-2.5 -mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="relative">
-          <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar tenis por modelo, marca o SKU..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-zinc-600 transition-colors shadow-lg"
-          />
+      <div className="sticky top-[53px] md:top-0 z-30 bg-zinc-950/95 backdrop-blur-md py-3 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-zinc-800/80 mb-4 shadow-xl">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar tenis por modelo, marca o SKU..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-zinc-600 transition-colors shadow-inner"
+            />
+          </div>
+          <Link
+            to="/admin/productos?new=true"
+            className="sm:hidden px-3.5 py-2.5 rounded-xl bg-white text-zinc-950 font-bold text-xs shrink-0 flex items-center justify-center gap-1 shadow-md hover:bg-zinc-200 transition-colors"
+            title="Agregar Tenis"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nuevo</span>
+          </Link>
         </div>
       </div>
 

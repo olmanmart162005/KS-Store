@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCart } from '../../context/CartContext';
-import { formatCurrency, generateOrderCode, sendOrderToWhatsApp } from '../../services/whatsappService';
+import { formatCurrency, generateOrderCode, sendOrderToWhatsApp, getDisplayWhatsAppNumber } from '../../services/whatsappService';
 
 export const Cart = () => {
   const { cart, updateQuantity, removeFromCart, clearCart, subtotal, totalItems } = useCart();
@@ -396,7 +396,7 @@ export const Cart = () => {
 
             <div className="pt-2 text-[11px] text-zinc-400 text-center flex items-center justify-center gap-1.5">
               <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
-              <span>Atención directa al <strong>+504 8969-2971</strong></span>
+              <span>Atención directa al <strong>{getDisplayWhatsAppNumber()}</strong></span>
             </div>
           </div>
 
@@ -464,7 +464,7 @@ export const Cart = () => {
             </div>
 
             <p className="text-[11px] text-zinc-400 text-center leading-relaxed">
-              ¿Deseas generar el mensaje y abrir WhatsApp ahora mismo con el número oficial de KS Store (+504 8969-2971)?
+              ¿Deseas generar el mensaje y abrir WhatsApp ahora mismo con el número oficial de KS Store ({getDisplayWhatsAppNumber()})?
             </p>
 
             <div className="grid grid-cols-2 gap-3 pt-2">

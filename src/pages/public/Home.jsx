@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import { ProductCard } from '../../components/ui/ProductCard';
-import { getWhatsAppNumber } from '../../services/whatsappService';
+import { getWhatsAppNumber, getDisplayWhatsAppNumber } from '../../services/whatsappService';
 
 export const Home = () => {
   const { products, settings } = useProducts();
@@ -381,7 +381,7 @@ export const Home = () => {
                 className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition-colors shadow-lg shadow-emerald-900/30"
               >
                 <MessageSquare className="w-4 h-4" />
-                <span>Consultar Dudas al WhatsApp (+504 8969-2971)</span>
+                <span>Consultar Dudas al WhatsApp ({getDisplayWhatsAppNumber()})</span>
               </a>
             </div>
           </div>

@@ -8,7 +8,7 @@
  * Siempre garantiza el código de país de Honduras (504).
  */
 export const getWhatsAppNumber = () => {
-  const envNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '89692971';
+  const envNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '88761389';
   // Elimina caracteres no numéricos
   const cleanNumber = envNumber.replace(/\D/g, '');
   
@@ -16,6 +16,18 @@ export const getWhatsAppNumber = () => {
     return cleanNumber;
   }
   return `504${cleanNumber}`;
+};
+
+/**
+ * Obtiene el número con formato legible (+504 XXXX-XXXX)
+ */
+export const getDisplayWhatsAppNumber = () => {
+  const raw = getWhatsAppNumber();
+  const phone = raw.startsWith('504') ? raw.slice(3) : raw;
+  if (phone.length === 8) {
+    return `+504 ${phone.slice(0, 4)}-${phone.slice(4)}`;
+  }
+  return `+504 ${phone}`;
 };
 
 /**

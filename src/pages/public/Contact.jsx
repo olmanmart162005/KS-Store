@@ -7,7 +7,7 @@ import {
   ArrowUpRight 
 } from 'lucide-react';
 import { InstagramIcon } from '../../components/ui/SocialIcons';
-import { getWhatsAppNumber } from '../../services/whatsappService';
+import { getWhatsAppNumber, getDisplayWhatsAppNumber } from '../../services/whatsappService';
 
 export const Contact = () => {
   const whatsappNum = getWhatsAppNumber();
@@ -70,7 +70,7 @@ export const Contact = () => {
                 rel="noreferrer"
                 className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-colors shadow-lg shadow-emerald-950"
               >
-                <span>Chatear al +504 8969-2971</span>
+                <span>Chatear al {getDisplayWhatsAppNumber()}</span>
                 <ArrowUpRight className="w-4 h-4" />
               </a>
             </div>

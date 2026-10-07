@@ -106,25 +106,26 @@ export const AdminLayout = () => {
         </div>
       </aside>
 
-      {/* Header Móvil para Admin */}
-      <header className="md:hidden bg-zinc-950 border-b border-zinc-800 p-4 flex items-center justify-between">
+      {/* Header Móvil para Admin (Siempre Fijo) */}
+      <header className="sticky top-0 z-40 md:hidden bg-zinc-950/95 backdrop-blur-md border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center p-1">
             <img src="/images/logo/logo.png" alt="KS" className="w-full h-full object-contain" />
           </div>
-          <span className="font-extrabold text-sm text-white">KS STORE ADMIN</span>
+          <span className="font-extrabold text-sm text-white font-heading">KS STORE ADMIN</span>
         </div>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg bg-zinc-900 text-zinc-300 hover:text-white"
+          className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white"
+          aria-label="Abrir Menú"
         >
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </header>
 
-      {/* Menú Móvil Desplegable */}
+      {/* Menú Móvil Desplegable (Fixed) */}
       {sidebarOpen && (
-        <div className="md:hidden bg-zinc-900 border-b border-zinc-800 p-4 space-y-2">
+        <div className="fixed inset-x-0 top-[53px] z-50 md:hidden bg-zinc-950/98 backdrop-blur-xl border-b border-zinc-800 p-4 space-y-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
@@ -133,8 +134,8 @@ export const AdminLayout = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider ${
-                  isActive ? 'bg-white text-zinc-950' : 'text-zinc-300'
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider ${
+                  isActive ? 'bg-white text-zinc-950 shadow-md' : 'text-zinc-300 hover:bg-zinc-900'
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -143,14 +144,14 @@ export const AdminLayout = () => {
             );
           })}
           <div className="pt-2 border-t border-zinc-800 flex justify-between items-center text-xs">
-            <Link to="/" target="_blank" className="text-zinc-400">Ver Tienda</Link>
-            <button onClick={handleLogout} className="text-rose-400 font-bold">Cerrar Sesión</button>
+            <Link to="/" target="_blank" className="text-zinc-400 hover:text-white">Ver Tienda</Link>
+            <button onClick={handleLogout} className="text-rose-400 font-bold hover:text-rose-300">Cerrar Sesión</button>
           </div>
         </div>
       )}
 
       {/* Área de Contenido Principal */}
-      <main className="flex-1 p-4 sm:p-8 lg:p-10 overflow-y-auto">
+      <main className="flex-1 p-4 sm:p-8 lg:p-10 min-w-0">
         <Outlet />
       </main>
 

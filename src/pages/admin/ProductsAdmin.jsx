@@ -198,29 +198,31 @@ export const ProductsAdmin = () => {
         </button>
       </div>
 
-      {/* Barra de Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1 relative">
-          <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nombre, SKU, marca..."
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-zinc-600 transition-colors"
-          />
-        </div>
+      {/* Barra de Filtros Fija (Sticky) */}
+      <div className="sticky top-[53px] md:top-0 z-30 bg-zinc-950/95 backdrop-blur-md py-3 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-zinc-800/80 mb-4 shadow-xl">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 relative">
+            <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, SKU, marca..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-zinc-600 transition-colors shadow-inner"
+            />
+          </div>
 
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-xs font-semibold focus:outline-none"
-        >
-          <option value="all">Todas las Categorías ({products.length})</option>
-          <option value="gorras">Gorras</option>
-          <option value="tenis">Tenis</option>
-          <option value="moda-urbana">Moda Urbana</option>
-        </select>
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white text-xs font-semibold focus:outline-none shadow-sm"
+          >
+            <option value="all">Todas las Categorías ({products.length})</option>
+            <option value="gorras">Gorras</option>
+            <option value="tenis">Tenis</option>
+            <option value="moda-urbana">Moda Urbana</option>
+          </select>
+        </div>
       </div>
 
       {/* Tabla de Productos */}

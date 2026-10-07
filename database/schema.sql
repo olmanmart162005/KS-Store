@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS store_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_name VARCHAR(100) NOT NULL DEFAULT 'KS Store',
     tagline VARCHAR(255) DEFAULT 'Estilo que te representa.',
-    whatsapp_number VARCHAR(50) DEFAULT '89692971',
+    whatsapp_number VARCHAR(50) DEFAULT '88761389',
     instagram_url VARCHAR(255) DEFAULT 'https://www.instagram.com/ks.store_hn',
     facebook_url VARCHAR(255) DEFAULT '',
     address VARCHAR(255) DEFAULT 'Honduras',

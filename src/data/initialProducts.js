@@ -7,7 +7,7 @@ export const initialCategories = [
 export const initialSettings = {
   store_name: "KS Store",
   tagline: "Estilo que te representa.",
-  whatsapp_number: "89692971",
+  whatsapp_number: "88761389",
   instagram_url: "https://www.instagram.com/ks.store_hn",
   facebook_url: "",
   address: "Honduras",

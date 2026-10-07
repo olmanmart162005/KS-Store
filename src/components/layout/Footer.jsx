@@ -10,7 +10,7 @@ import {
   ArrowUpRight 
 } from 'lucide-react';
 import { InstagramIcon } from '../ui/SocialIcons';
-import { getWhatsAppNumber } from '../../services/whatsappService';
+import { getWhatsAppNumber, getDisplayWhatsAppNumber } from '../../services/whatsappService';
 
 export const Footer = () => {
   const whatsappNum = getWhatsAppNumber();
@@ -166,7 +166,7 @@ export const Footer = () => {
                     rel="noreferrer"
                     className="text-white hover:underline flex items-center gap-1 font-mono font-bold"
                   >
-                    +504 8969-2971
+                    {getDisplayWhatsAppNumber()}
                     <ArrowUpRight className="w-3 h-3 text-zinc-400" />
                   </a>
                 </div>

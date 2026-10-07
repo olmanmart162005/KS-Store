@@ -20,7 +20,7 @@ export const SettingsAdmin = () => {
   const [formData, setFormData] = useState({
     store_name: settings.store_name || 'KS Store',
     tagline: settings.tagline || 'Estilo que te representa.',
-    whatsapp_number: settings.whatsapp_number || '89692971',
+    whatsapp_number: settings.whatsapp_number || '88761389',
     instagram_url: settings.instagram_url || 'https://www.instagram.com/ks.store_hn',
     facebook_url: '',
     address: settings.address || 'Honduras',
@@ -113,7 +113,7 @@ export const SettingsAdmin = () => {
                 value={formData.whatsapp_number}
                 onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })}
                 required
-                placeholder="89692971"
+                placeholder="88761389"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white font-mono"
               />
               <span className="text-[10px] text-zinc-500 mt-1 block">

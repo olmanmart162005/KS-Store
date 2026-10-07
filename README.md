@@ -12,7 +12,7 @@ Bienvenido a la plataforma web oficial de **KS Store**, un catálogo digital pro
 - **Enrutamiento:** React Router DOM v7 (SPA con rutas públicas y panel admin protegido)
 - **Base de Datos & Backend:** PostgreSQL + Supabase (con soporte RLS y Storage para imágenes)
 - **Modo Híbrido / Offline-First:** Funciona de inmediato con catálogo pre-cargado (las 43 gorras reales de la tienda) y persistencia en `localStorage`
-- **Integración WhatsApp:** Generador automático de pedidos multilínea con formato internacional de Honduras (`+504 89692971`)
+- **Integración WhatsApp:** Generador automático de pedidos multilínea con formato internacional de Honduras (`+504 8876-1389`)
 - **PWA & SEO:** Progressive Web App instalable con manifest, sitemap.xml, robots.txt y Open Graph tags
 
 ---
@@ -58,7 +58,7 @@ VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
 
 # Contacto Oficial de WhatsApp (Número de Honduras de 8 dígitos)
-VITE_WHATSAPP_NUMBER=89692971
+VITE_WHATSAPP_NUMBER=88761389
 
 # Redes Sociales Oficiales
 VITE_INSTAGRAM_URL=https://www.instagram.com/ks.store_hn
@@ -108,7 +108,7 @@ El cliente disfruta de una experiencia fluida de compra:
 6. Opcionalmente completa su nombre y teléfono.
 7. Al presionar **Enviar Pedido por WhatsApp**:
    - Se muestra un modal de resumen de confirmación con el código único del pedido (`KS-YYYYMMDD-XXX`).
-   - Se abre WhatsApp con destino al número oficial **+504 89692971** con todos los productos desglosados en **un solo mensaje estructurado**.
+   - Se abre WhatsApp con destino al número oficial **+504 8876-1389** con todos los productos desglosados en **un solo mensaje estructurado**.
    - Se limpia el carrito de forma segura y se muestra la pantalla de confirmación.
 
 ---
