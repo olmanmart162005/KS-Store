@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCart } from '../../context/CartContext';
-import { formatCurrency, generateOrderCode, sendOrderToWhatsApp, sendOrderToWhatsAppWithMedia, getDisplayWhatsAppNumber } from '../../services/whatsappService';
+import { formatCurrency, generateOrderCode, sendOrderToWhatsApp, getDisplayWhatsAppNumber } from '../../services/whatsappService';
 
 export const Cart = () => {
   const { cart, updateQuantity, removeFromCart, clearCart, subtotal, totalItems } = useCart();
@@ -49,8 +49,8 @@ export const Cart = () => {
     setShowConfirmModal(true);
   };
 
-  // Confirmación y envío final por WhatsApp con fotos
-  const handleConfirmAndSend = async () => {
+  // Confirmación y envío final por WhatsApp con fotos — va directo al número de KS Store
+  const handleConfirmAndSend = () => {
     const code = generateOrderCode();
     setSentOrderCode(code);
 
@@ -60,16 +60,13 @@ export const Cart = () => {
       notes: customerNotes,
     };
 
-    // 1. Enviar pedido a WhatsApp con fotos (o con enlace si no soporta adjuntos)
-    const result = await sendOrderToWhatsAppWithMedia(cart, customerData, code);
+    // Abre WhatsApp directo al número +504 8876-1389 con el pedido + links de fotos
+    sendOrderToWhatsApp(cart, customerData, code);
 
-    // Si el usuario canceló el modal de compartir nativo, no continuamos
-    if (result && result.aborted) return;
-
-    // 2. Limpiar carrito de manera segura
+    // Limpiar carrito
     clearCart();
 
-    // 3. Activar pantalla de éxito y confeti festivo
+    // Pantalla de éxito + confeti
     setShowConfirmModal(false);
     setOrderSent(true);
 

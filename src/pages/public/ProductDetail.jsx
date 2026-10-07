@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import { useCart } from '../../context/CartContext';
-import { formatCurrency, sendProductQueryToWhatsApp, sendProductQueryToWhatsAppWithMedia } from '../../services/whatsappService';
+import { formatCurrency, sendProductQueryToWhatsApp } from '../../services/whatsappService';
 import { ProductCard } from '../../components/ui/ProductCard';
 
 export const ProductDetail = () => {
@@ -88,14 +88,14 @@ export const ProductDetail = () => {
     setTimeout(() => setAddedSuccess(false), 2000);
   };
 
-  // Consulta directa por WhatsApp con foto
+  // Consulta directa por WhatsApp — abre directo al número de KS Store con foto incluida
   const handleWhatsAppQuery = () => {
     if (product.sizes?.length > 1 && !selectedSize) {
       setValidationError('Selecciona tu talla preferida para incluirla en la consulta de WhatsApp.');
       return;
     }
     setValidationError('');
-    sendProductQueryToWhatsAppWithMedia(product, selectedSize, selectedColor);
+    sendProductQueryToWhatsApp(product, selectedSize, selectedColor);
   };
 
   const discountPercent = product.compare_price && product.compare_price > product.price
