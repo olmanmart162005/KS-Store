@@ -130,7 +130,7 @@ export const ProductDetail = () => {
           <div className="relative aspect-3/4 rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-2xl">
             <img
               src={selectedImage || product.main_image}
-              alt={product.name}
+              alt={`KS Store - ${product.name} (${product.category === 'gorras' ? 'gorras' : 'sneakers'})`}
               className="w-full h-full object-cover object-center transition-all duration-300"
             />
 
@@ -170,7 +170,7 @@ export const ProductDetail = () => {
                       : 'border-zinc-800 hover:border-zinc-600 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt={`${product.name} vista ${index + 1}`} className="w-full h-full object-cover" />
+                  <img src={img} alt={`KS Store - ${product.name} vista ${index + 1}`} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

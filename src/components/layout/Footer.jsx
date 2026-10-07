@@ -64,7 +64,7 @@ export const Footer = () => {
               <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center p-1.5 shadow-md">
                 <img
                   src="/images/logo/logo.png"
-                  alt="KS Store"
+                  alt="KS Store - Tienda de Gorras y Sneakers en Honduras"
                   className="w-full h-full object-contain"
                 />
               </div>

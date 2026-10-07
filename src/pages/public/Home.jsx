@@ -54,7 +54,7 @@ export const Home = () => {
               </h1>
 
               <p className="text-sm sm:text-base lg:text-lg text-zinc-400 max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
-                {settings.hero_subtitle || 'La selección más cotizada en gorras de diseñador, pedrería fina, sneakers y alta moda urbana en Honduras. Cada pieza seleccionada para destacar.'}
+                {settings.hero_subtitle || 'KS Store es tu tienda en línea de gorras, sneakers y moda urbana en Honduras. La selección más cotizada en gorras de diseñador, pedrería fina y calzado urbano con envíos a todo el país.'}
               </p>
 
               {/* Botones CTA Principales */}
@@ -102,7 +102,7 @@ export const Home = () => {
                 <div className="relative aspect-3/4 rounded-3xl overflow-hidden border-2 border-zinc-700/80 shadow-2xl shadow-black/80 bg-zinc-900 group">
                   <img
                     src={heroProduct?.main_image || "/images/products/gorras/IMG-20261006-WA0083.jpg"}
-                    alt={heroProduct?.name || "KS Store Edición Destacada"}
+                    alt={heroProduct?.name ? `KS Store - ${heroProduct.name}` : "KS Store - Gorras y Sneakers en Honduras"}
                     className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
                   />
                   
@@ -138,7 +138,7 @@ export const Home = () => {
                 {/* Badge Flotante Superior */}
                 <div className="absolute -top-4 -left-4 p-3 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-xl flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center p-1">
-                    <img src="/images/logo/logo.png" alt="KS" className="w-full h-full object-contain" />
+                    <img src="/images/logo/logo.png" alt="KS Store - Logo Oficial" className="w-full h-full object-contain" />
                   </div>
                   <div>
                     <div className="text-xs font-bold text-white">KS STORE</div>

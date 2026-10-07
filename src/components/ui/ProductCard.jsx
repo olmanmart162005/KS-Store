@@ -42,7 +42,7 @@ export const ProductCard = ({ product }) => {
       >
         <img
           src={imgError ? '/images/logo/logo.png' : product.main_image}
-          alt={product.name}
+          alt={`KS Store - ${product.name} (${product.category === 'gorras' ? 'gorras' : 'sneakers'})`}
           loading="lazy"
           onError={() => setImgError(true)}
           className={`h-full w-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 ${
