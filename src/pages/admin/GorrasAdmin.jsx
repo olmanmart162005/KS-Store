@@ -90,16 +90,18 @@ export const GorrasAdmin = () => {
         </Link>
       </div>
 
-      {/* Buscador */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar gorra por modelo, pedrería, marca o SKU..."
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-zinc-600 transition-colors"
-        />
+      {/* Buscador Fijo (Sticky) */}
+      <div className="sticky top-16 sm:top-20 z-20 bg-zinc-950/95 backdrop-blur-md py-2.5 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="relative">
+          <Search className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar gorra por modelo, pedrería, marca o SKU..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-zinc-600 transition-colors shadow-lg"
+          />
+        </div>
       </div>
 
       {/* Grid de Gorras para Control Visual Directo */}
