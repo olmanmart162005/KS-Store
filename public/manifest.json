@@ -1,0 +1,22 @@
+{
+  "short_name": "KS Store",
+  "name": "KS Store - Catálogo Digital",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "64x64"
+    },
+    {
+      "src": "/images/logo/logo.png",
+      "type": "image/png",
+      "sizes": "1279x1230",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "display": "standalone",
+  "orientation": "portrait"
+}
