@@ -91,97 +91,67 @@ export const canShareFiles = () => {
 };
 
 /**
- * Construye el mensaje estructurado de WhatsApp para un pedido con múltiples productos y fotos
+ * Construye el mensaje estructurado de WhatsApp para un pedido — formato profesional
  */
 export const generateWhatsAppOrderMessage = (cart, customerData = {}, orderCode = '') => {
   const code = orderCode || generateOrderCode();
-  let message = `🔥 *NUEVO PEDIDO - KS STORE*\n`;
-  message += `📋 *Código de Pedido:* ${code}\n`;
-  message += `━━━━━━━━━━━━━━━━━━━━\n`;
+
+  let message = `🛍️ *PEDIDO KS STORE*\n`;
+  message += `📋 Código: *${code}*\n`;
+  message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
 
   if (customerData.name || customerData.phone || customerData.notes) {
-    message += `👤 *DATOS DEL CLIENTE:*\n`;
-    if (customerData.name) {
-      message += `• *Nombre:* ${customerData.name.trim()}\n`;
-    }
-    if (customerData.phone) {
-      message += `• *Teléfono:* ${customerData.phone.trim()}\n`;
-    }
-    if (customerData.notes) {
-      message += `• *Dirección/Notas:* ${customerData.notes.trim()}\n`;
-    }
-    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-  } else {
+    message += `👤 *DATOS DE CONTACTO*\n`;
+    if (customerData.name)  message += `› Nombre: *${customerData.name.trim()}*\n`;
+    if (customerData.phone) message += `› Teléfono: *${customerData.phone.trim()}*\n`;
+    if (customerData.notes) message += `› Dirección/Notas: ${customerData.notes.trim()}\n`;
     message += `\n`;
   }
 
-  let total = 0;
-  message += `🛒 *PRODUCTOS DEL PEDIDO (${cart.length}):*\n\n`;
+  message += `🛒 *PRODUCTOS (${cart.length})*\n`;
+  message += `━━━━━━━━━━━━━━━━━━━━\n`;
 
+  let total = 0;
   cart.forEach((item, index) => {
     const itemSubtotal = item.price * item.quantity;
     total += itemSubtotal;
 
-    message += `*${index + 1}. ${item.name}*\n`;
-    message += `   • Código SKU: ${item.sku || 'N/A'}\n`;
+    message += `\n*${index + 1}. ${item.name}*\n`;
+    if (item.sku) message += `   SKU: ${item.sku}\n`;
     if (item.size && item.size !== 'Unitalla' && item.size !== 'Ajustable / Unitalla') {
-      message += `   • Talla: ${item.size}\n`;
+      message += `   Talla: ${item.size}\n`;
     }
-    if (item.color) {
-      message += `   • Color: ${item.color}\n`;
-    }
-    message += `   • Cantidad: ${item.quantity} ud(s)\n`;
-    message += `   • Precio: ${formatCurrency(item.price)}\n`;
-    message += `   • Subtotal: ${formatCurrency(itemSubtotal)}\n`;
-    
-    // Enlace directo a la fotografía del producto en alta resolución
-    if (item.main_image) {
-      message += `   📸 *Foto del producto:* ${getAbsoluteImageUrl(item.main_image)}\n`;
-    }
-    if (item.slug) {
-      message += `   🔗 *Ver en tienda:* ${getAbsoluteProductUrl(item.slug)}\n`;
-    }
-    message += `\n`;
+    if (item.color) message += `   Color: ${item.color}\n`;
+    message += `   Cantidad: ${item.quantity}\n`;
+    message += `   Precio unitario: ${formatCurrency(item.price)}\n`;
+    message += `   *Subtotal: ${formatCurrency(itemSubtotal)}*\n`;
   });
 
-  message += `━━━━━━━━━━━━━━━━━━━━\n`;
-  message += `💰 *TOTAL A PAGAR: ${formatCurrency(total)}*\n\n`;
-  message += `📍 *Ubicación:* Honduras\n`;
-  message += `Quedo a la espera de la confirmación de disponibilidad para coordinar el pago y entrega.\n\n`;
-  message += `¡Muchas gracias!`;
+  message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
+  message += `💰 *TOTAL: ${formatCurrency(total)}*\n`;
+  message += `📦 Envío: A coordinar\n\n`;
+  message += `Quedo a la espera de su confirmación. ¡Gracias! 🙏`;
 
   return message;
 };
 
 /**
- * Construye un mensaje para consultar directamente un producto individual con su foto
+ * Construye un mensaje profesional para consultar un producto individual
  */
 export const generateSingleProductMessage = (product, selectedSize = '', selectedColor = '') => {
-  let message = `Hola KS Store, quiero consultar por este producto:\n\n`;
+  let message = `Hola KS Store, me interesa el siguiente producto:\n\n`;
   message += `🔥 *${product.name}*\n`;
-  message += `• Código SKU: ${product.sku || 'N/A'}\n`;
-  message += `• Precio: ${formatCurrency(product.price)}\n`;
-  
-  const details = [];
+  message += `   SKU: ${product.sku || 'N/A'}\n`;
+  message += `   Precio: *${formatCurrency(product.price)}*\n`;
+
   if (selectedSize && selectedSize !== 'Unitalla') {
-    details.push(`Talla: ${selectedSize}`);
+    message += `   Talla: ${selectedSize}\n`;
   }
   if (selectedColor) {
-    details.push(`Color: ${selectedColor}`);
+    message += `   Color: ${selectedColor}\n`;
   }
 
-  if (details.length > 0) {
-    message += `• Detalle: ${details.join(', ')}\n`;
-  }
-
-  if (product.main_image) {
-    message += `📸 *Foto del producto:* ${getAbsoluteImageUrl(product.main_image)}\n`;
-  }
-  if (product.slug) {
-    message += `🔗 *Ver en tienda:* ${getAbsoluteProductUrl(product.slug)}\n`;
-  }
-
-  message += `\n¿Tienen disponibilidad para entrega o envío en Honduras?`;
+  message += `\n¿Está disponible? ¿Hacen envíos? 🙏`;
   return message;
 };
 
