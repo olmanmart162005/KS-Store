@@ -9,13 +9,12 @@ import {
   Sparkles, 
   ArrowUpRight 
 } from 'lucide-react';
-import { InstagramIcon, FacebookIcon } from '../ui/SocialIcons';
+import { InstagramIcon } from '../ui/SocialIcons';
 import { getWhatsAppNumber } from '../../services/whatsappService';
 
 export const Footer = () => {
   const whatsappNum = getWhatsAppNumber();
-  const instagramUrl = import.meta.env.VITE_INSTAGRAM_URL || 'https://instagram.com/ksstore';
-  const facebookUrl = import.meta.env.VITE_FACEBOOK_URL || 'https://facebook.com/ksstore';
+  const instagramUrl = import.meta.env.VITE_INSTAGRAM_URL || 'https://www.instagram.com/ks.store_hn';
   const address = import.meta.env.VITE_STORE_ADDRESS || 'Honduras';
 
   return (
@@ -99,15 +98,6 @@ export const Footer = () => {
                 aria-label="Instagram"
               >
                 <InstagramIcon className="w-4 h-4" />
-              </a>
-              <a
-                href={facebookUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="w-9 h-9 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-300 hover:text-blue-400 hover:border-blue-500/50 transition-colors"
-                aria-label="Facebook"
-              >
-                <FacebookIcon className="w-4 h-4" />
               </a>
             </div>
           </div>

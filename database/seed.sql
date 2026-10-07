@@ -11,8 +11,8 @@ ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name;
 
 -- 2. INSERTAR CONFIGURACIÓN DE TIENDA
 INSERT INTO store_settings (id, store_name, tagline, whatsapp_number, instagram_url, facebook_url, address, schedule, hero_title, hero_subtitle) VALUES
-('44444444-4444-4444-4444-444444444444', 'KS Store', 'Estilo que te representa.', '89692971', 'https://instagram.com/ksstore', 'https://facebook.com/ksstore', 'Honduras', 'Lunes a Sábado: 9:00 AM - 7:00 PM', 'ESTILO QUE TE REPRESENTA', 'Colección exclusiva de gorras de diseñador, sneakers y moda urbana de alto impacto.')
-ON CONFLICT (id) DO NOTHING;
+('44444444-4444-4444-4444-444444444444', 'KS Store', 'Estilo que te representa.', '89692971', 'https://www.instagram.com/ks.store_hn', '', 'Honduras', 'Lunes a Sábado: 9:00 AM - 7:00 PM', 'ESTILO QUE TE REPRESENTA', 'Colección exclusiva de gorras de diseñador, sneakers y moda urbana de alto impacto.')
+ON CONFLICT (id) DO UPDATE SET instagram_url = EXCLUDED.instagram_url, facebook_url = EXCLUDED.facebook_url;
 
 -- 3. INSERTAR PRODUCTOS
 INSERT INTO products (name, slug, description, category_id, brand, sku, price, compare_price, stock, status, featured, is_new, is_sale, main_image) VALUES

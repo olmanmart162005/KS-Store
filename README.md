@@ -60,9 +60,8 @@ VITE_SUPABASE_ANON_KEY=
 # Contacto Oficial de WhatsApp (Número de Honduras de 8 dígitos)
 VITE_WHATSAPP_NUMBER=89692971
 
-# Redes Sociales y Tienda
-VITE_INSTAGRAM_URL=https://instagram.com/ksstore
-VITE_FACEBOOK_URL=https://facebook.com/ksstore
+# Redes Sociales Oficiales
+VITE_INSTAGRAM_URL=https://www.instagram.com/ks.store_hn
 VITE_STORE_ADDRESS=Honduras
 ```
 

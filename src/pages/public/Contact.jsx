@@ -4,17 +4,14 @@ import {
   MapPin, 
   Clock, 
   Send, 
-  Phone, 
-  Sparkles, 
   ArrowUpRight 
 } from 'lucide-react';
-import { InstagramIcon, FacebookIcon } from '../../components/ui/SocialIcons';
+import { InstagramIcon } from '../../components/ui/SocialIcons';
 import { getWhatsAppNumber } from '../../services/whatsappService';
 
 export const Contact = () => {
   const whatsappNum = getWhatsAppNumber();
-  const instagramUrl = import.meta.env.VITE_INSTAGRAM_URL || 'https://instagram.com/ksstore';
-  const facebookUrl = import.meta.env.VITE_FACEBOOK_URL || 'https://facebook.com/ksstore';
+  const instagramUrl = import.meta.env.VITE_INSTAGRAM_URL || 'https://www.instagram.com/ks.store_hn';
   const address = import.meta.env.VITE_STORE_ADDRESS || 'Honduras';
 
   const [name, setName] = useState('');
@@ -99,24 +96,15 @@ export const Contact = () => {
 
             <hr className="border-zinc-800" />
 
-            <div className="pt-1 flex items-center gap-3">
+            <div className="pt-1">
               <a
                 href={instagramUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="flex-1 py-2.5 px-3 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-pink-500 text-zinc-300 hover:text-white flex items-center justify-center gap-2 transition-colors font-semibold"
+                className="w-full py-2.5 px-3 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-pink-500 text-zinc-300 hover:text-white flex items-center justify-center gap-2 transition-colors font-semibold"
               >
                 <InstagramIcon className="w-4 h-4 text-pink-400" />
-                <span>Instagram</span>
-              </a>
-              <a
-                href={facebookUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 py-2.5 px-3 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-blue-500 text-zinc-300 hover:text-white flex items-center justify-center gap-2 transition-colors font-semibold"
-              >
-                <FacebookIcon className="w-4 h-4 text-blue-400" />
-                <span>Facebook</span>
+                <span>Instagram: @ks.store_hn</span>
               </a>
             </div>
           </div>

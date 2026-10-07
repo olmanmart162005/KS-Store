@@ -102,7 +102,13 @@ export const ProductsProvider = ({ children }) => {
           .single();
 
         if (!sError && dbSettings) {
-          setSettings(dbSettings);
+          setSettings({
+            ...dbSettings,
+            instagram_url: (!dbSettings.instagram_url || dbSettings.instagram_url === 'https://instagram.com/ksstore')
+              ? (import.meta.env.VITE_INSTAGRAM_URL || 'https://www.instagram.com/ks.store_hn')
+              : dbSettings.instagram_url,
+            facebook_url: ''
+          });
         }
       } catch (err) {
         console.warn('Usando catálogo local (Supabase no accesible aún):', err);

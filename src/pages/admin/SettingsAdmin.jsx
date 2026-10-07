@@ -9,7 +9,7 @@ import {
   Flame,
   CheckCircle2
 } from 'lucide-react';
-import { InstagramIcon, FacebookIcon } from '../../components/ui/SocialIcons';
+import { InstagramIcon } from '../../components/ui/SocialIcons';
 import { useProducts } from '../../context/ProductsContext';
 import { useCart } from '../../context/CartContext';
 
@@ -21,8 +21,8 @@ export const SettingsAdmin = () => {
     store_name: settings.store_name || 'KS Store',
     tagline: settings.tagline || 'Estilo que te representa.',
     whatsapp_number: settings.whatsapp_number || '89692971',
-    instagram_url: settings.instagram_url || 'https://instagram.com/ksstore',
-    facebook_url: settings.facebook_url || 'https://facebook.com/ksstore',
+    instagram_url: settings.instagram_url || 'https://www.instagram.com/ks.store_hn',
+    facebook_url: '',
     address: settings.address || 'Honduras',
     schedule: settings.schedule || 'Lunes a Sábado: 9:00 AM - 7:00 PM',
     hero_title: settings.hero_title || 'ESTILO URBANO EXCLUSIVO',
@@ -134,32 +134,18 @@ export const SettingsAdmin = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-[11px] font-bold text-zinc-300 uppercase block mb-1 flex items-center gap-1.5">
-                <InstagramIcon className="w-3.5 h-3.5 text-pink-400" />
-                Enlace de Instagram
-              </label>
-              <input
-                type="url"
-                value={formData.instagram_url}
-                onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] font-bold text-zinc-300 uppercase block mb-1 flex items-center gap-1.5">
-                <FacebookIcon className="w-3.5 h-3.5 text-blue-400" />
-                Enlace de Facebook
-              </label>
-              <input
-                type="url"
-                value={formData.facebook_url}
-                onChange={(e) => setFormData({ ...formData, facebook_url: e.target.value })}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white"
-              />
-            </div>
+          <div>
+            <label className="text-[11px] font-bold text-zinc-300 uppercase block mb-1 flex items-center gap-1.5">
+              <InstagramIcon className="w-3.5 h-3.5 text-pink-400" />
+              Enlace de Instagram Oficial
+            </label>
+            <input
+              type="url"
+              value={formData.instagram_url}
+              onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
+              placeholder="https://www.instagram.com/ks.store_hn"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-xs text-white"
+            />
           </div>
         </div>
 
