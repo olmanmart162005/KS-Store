@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /admin/
 
-Sitemap: https://ksstore.com/sitemap.xml
+Sitemap: https://ks-store-0606.vercel.app/sitemap.xml
