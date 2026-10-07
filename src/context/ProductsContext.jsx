@@ -72,8 +72,14 @@ export const ProductsProvider = ({ children }) => {
             gallery: p.product_images?.length > 0 
               ? p.product_images.map(img => img.image_url) 
               : [p.main_image],
-            sizes: p.product_sizes?.length > 0 ? p.product_sizes.map(s => s.size) : ['Unitalla'],
-            colors: p.product_colors?.length > 0 ? p.product_colors.map(c => c.color_name) : []
+            sizes: p.product_sizes?.length > 0 
+              ? p.product_sizes.map(s => s.size) 
+              : (p.categories?.slug === 'tenis' || p.sku?.startsWith('KS-T') 
+                  ? ['38', '39', '40', '41', '42', '43'] 
+                  : ['Unitalla']),
+            colors: p.product_colors?.length > 0 
+              ? p.product_colors.map(c => c.color_name) 
+              : (initialProducts.find(ip => ip.sku === p.sku)?.colors || ['Negro'])
           }));
           setProducts(formatted);
         }
