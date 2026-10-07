@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const Login = () => {
@@ -24,15 +24,6 @@ export const Login = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleUseDemo = () => {
-    setEmail('admin@ksstore.com');
-    setPassword('ksstore2026');
-  };
-
-  const handleUseSaulAdmin = () => {
-    setEmail('sauladmin@ksstore.org');
   };
 
   return (
@@ -114,32 +105,6 @@ export const Login = () => {
             )}
           </button>
         </form>
-
-        {/* Acceso Rápido para Administrador */}
-        <div className="p-3.5 rounded-xl bg-zinc-950/90 border border-zinc-800 text-[11px] text-zinc-400 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-emerald-400">Tu usuario en Supabase:</span>
-            <button
-              type="button"
-              onClick={handleUseSaulAdmin}
-              className="text-white hover:underline font-bold"
-            >
-              Usar correo
-            </button>
-          </div>
-          <p className="font-mono text-zinc-300">sauladmin@ksstore.org</p>
-          <hr className="border-zinc-800/80 my-1" />
-          <div className="flex items-center justify-between text-zinc-500">
-            <span>Acceso demo de respaldo:</span>
-            <button
-              type="button"
-              onClick={handleUseDemo}
-              className="text-zinc-400 hover:text-white underline text-[10px]"
-            >
-              Autocompletar
-            </button>
-          </div>
-        </div>
 
         <div className="text-center">
           <Link to="/" className="text-xs text-zinc-400 hover:text-white transition-colors">
