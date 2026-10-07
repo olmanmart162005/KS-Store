@@ -26,7 +26,6 @@ export const Home = () => {
 
   // Producto destacado para el showcase Hero (sincronizado dinámicamente)
   const heroProduct = products.find((p) => p.sku === 'KS-G001') || products.find((p) => p.featured) || products[0];
-  const secondaryHeroProduct = products.find((p) => p.sku === 'KS-G002') || products[1];
 
   return (
     <div className="space-y-20 sm:space-y-28 pb-16">
@@ -150,20 +149,6 @@ export const Home = () => {
                   </div>
                 </div>
 
-                {/* Miniatura Flotante Derecha */}
-                {secondaryHeroProduct && (
-                  <Link
-                    to={`/producto/${secondaryHeroProduct.slug || secondaryHeroProduct.id}`}
-                    className="hidden sm:block absolute -bottom-6 -right-6 w-32 aspect-3/4 rounded-2xl overflow-hidden border-2 border-zinc-700 shadow-2xl bg-zinc-900 group hover:scale-105 transition-transform"
-                    title={secondaryHeroProduct.name}
-                  >
-                    <img
-                      src={secondaryHeroProduct.main_image || "/images/products/gorras/IMG-20261006-WA0084.jpg"}
-                      alt={secondaryHeroProduct.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </Link>
-                )}
 
               </div>
             </div>
