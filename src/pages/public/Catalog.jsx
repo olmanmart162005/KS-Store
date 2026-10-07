@@ -30,7 +30,7 @@ export const Catalog = ({ initialCategory = null }) => {
   const [priceRange, setPriceRange] = useState('all'); // 'all', 'under1000', '1000-2500', 'over2500'
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [onlySale, setOnlySale] = useState(false);
-  const [sortBy, setSortBy] = useState('featured'); // 'featured', 'price-asc', 'price-desc', 'newest'
+  const [sortBy, setSortBy] = useState('all'); // 'all', 'featured', 'price-asc', 'price-desc', 'newest'
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // Sincronizar si cambia ruta directa (/gorras, /tenis) o URL params
@@ -119,20 +119,34 @@ export const Catalog = ({ initialCategory = null }) => {
         if (sortBy === 'price-asc') return a.price - b.price;
         if (sortBy === 'price-desc') return b.price - a.price;
         if (sortBy === 'newest') return (b.is_new ? 1 : 0) - (a.is_new ? 1 : 0);
-        // Featured default
-        return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+        if (sortBy === 'featured') return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
+        return 0;
       });
   }, [products, search, selectedCategory, selectedBrand, selectedSize, priceRange, onlyAvailable, onlySale, sortBy]);
 
+  const handleSortChange = (e) => {
+    const val = e.target.value;
+    setSortBy(val);
+    if (val === 'all') {
+      setSelectedCategory('all');
+      setSelectedBrand('all');
+      setSelectedSize('all');
+      setPriceRange('all');
+      setOnlyAvailable(false);
+      setOnlySale(false);
+      setSearch('');
+    }
+  };
+
   const resetFilters = () => {
     setSearch('');
-    setSelectedCategory(initialCategory || 'all');
+    setSelectedCategory('all');
     setSelectedBrand('all');
     setSelectedSize('all');
     setPriceRange('all');
     setOnlyAvailable(false);
     setOnlySale(false);
-    setSortBy('featured');
+    setSortBy('all');
     setSearchParams({});
   };
 
@@ -186,9 +200,10 @@ export const Catalog = ({ initialCategory = null }) => {
             {/* Selector de Ordenamiento */}
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
+              onChange={handleSortChange}
               className="px-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-700 text-white text-xs font-semibold focus:outline-none focus:border-white cursor-pointer"
             >
+              <option value="all">Todos</option>
               <option value="featured">Destacados</option>
               <option value="newest">Más Nuevos</option>
               <option value="price-asc">Precio: Menor a Mayor</option>
