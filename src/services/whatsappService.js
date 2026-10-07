@@ -55,24 +55,60 @@ export const generateOrderCode = () => {
 };
 
 /**
- * Construye el mensaje estructurado de WhatsApp para un pedido con múltiples productos
+ * Convierte una ruta relativa de imagen a una URL absoluta pública accesible por WhatsApp
+ */
+export const getAbsoluteImageUrl = (path) => {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+  const baseUrl = 'https://ks-store-0606.vercel.app';
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}${cleanPath}`;
+};
+
+/**
+ * Convierte un slug de producto en una URL pública navegable
+ */
+export const getAbsoluteProductUrl = (slug) => {
+  if (!slug) return '';
+  return `https://ks-store-0606.vercel.app/producto/${slug}`;
+};
+
+/**
+ * Verifica si el navegador soporta compartir archivos (fotos) nativamente (Android/iOS)
+ */
+export const canShareFiles = () => {
+  if (typeof navigator === 'undefined' || !navigator.share || !navigator.canShare) {
+    return false;
+  }
+  try {
+    const testFile = new File(['test'], 'test.txt', { type: 'text/plain' });
+    return navigator.canShare({ files: [testFile] });
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Construye el mensaje estructurado de WhatsApp para un pedido con múltiples productos y fotos
  */
 export const generateWhatsAppOrderMessage = (cart, customerData = {}, orderCode = '') => {
   const code = orderCode || generateOrderCode();
-  let message = `Hola KS Store, quiero realizar el siguiente pedido:\n\n`;
-  message += `PEDIDO KS STORE\n`;
-  message += `Número: ${code}\n`;
+  let message = `🔥 *NUEVO PEDIDO - KS STORE*\n`;
+  message += `📋 *Código de Pedido:* ${code}\n`;
   message += `━━━━━━━━━━━━━━━━━━━━\n`;
 
-  if (customerData.name || customerData.phone) {
+  if (customerData.name || customerData.phone || customerData.notes) {
+    message += `👤 *DATOS DEL CLIENTE:*\n`;
     if (customerData.name) {
-      message += `Cliente: ${customerData.name.trim()}\n`;
+      message += `• *Nombre:* ${customerData.name.trim()}\n`;
     }
     if (customerData.phone) {
-      message += `Teléfono: ${customerData.phone.trim()}\n`;
+      message += `• *Teléfono:* ${customerData.phone.trim()}\n`;
     }
     if (customerData.notes) {
-      message += `Comentario: ${customerData.notes.trim()}\n`;
+      message += `• *Dirección/Notas:* ${customerData.notes.trim()}\n`;
     }
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
   } else {
@@ -80,37 +116,51 @@ export const generateWhatsAppOrderMessage = (cart, customerData = {}, orderCode 
   }
 
   let total = 0;
+  message += `🛒 *PRODUCTOS DEL PEDIDO (${cart.length}):*\n\n`;
 
   cart.forEach((item, index) => {
     const itemSubtotal = item.price * item.quantity;
     total += itemSubtotal;
 
-    message += `${index + 1}. ${item.name}\n`;
-    message += `   Código: ${item.sku || 'N/A'}\n`;
+    message += `*${index + 1}. ${item.name}*\n`;
+    message += `   • Código SKU: ${item.sku || 'N/A'}\n`;
     if (item.size && item.size !== 'Unitalla' && item.size !== 'Ajustable / Unitalla') {
-      message += `   Talla: ${item.size}\n`;
+      message += `   • Talla: ${item.size}\n`;
     }
     if (item.color) {
-      message += `   Color: ${item.color}\n`;
+      message += `   • Color: ${item.color}\n`;
     }
-    message += `   Cantidad: ${item.quantity}\n`;
-    message += `   Precio: ${formatCurrency(item.price)}\n`;
-    message += `   Subtotal: ${formatCurrency(itemSubtotal)}\n\n`;
+    message += `   • Cantidad: ${item.quantity} ud(s)\n`;
+    message += `   • Precio: ${formatCurrency(item.price)}\n`;
+    message += `   • Subtotal: ${formatCurrency(itemSubtotal)}\n`;
+    
+    // Enlace directo a la fotografía del producto en alta resolución
+    if (item.main_image) {
+      message += `   📸 *Foto del producto:* ${getAbsoluteImageUrl(item.main_image)}\n`;
+    }
+    if (item.slug) {
+      message += `   🔗 *Ver en tienda:* ${getAbsoluteProductUrl(item.slug)}\n`;
+    }
+    message += `\n`;
   });
 
   message += `━━━━━━━━━━━━━━━━━━━━\n`;
-  message += `TOTAL DEL PEDIDO: ${formatCurrency(total)}\n\n`;
-  message += `Quedo pendiente para confirmar disponibilidad y detalles del pedido.\n\n`;
-  message += `Gracias.`;
+  message += `💰 *TOTAL A PAGAR: ${formatCurrency(total)}*\n\n`;
+  message += `📍 *Ubicación:* Honduras\n`;
+  message += `Quedo a la espera de la confirmación de disponibilidad para coordinar el pago y entrega.\n\n`;
+  message += `¡Muchas gracias!`;
 
   return message;
 };
 
 /**
- * Construye un mensaje para consultar directamente un producto individual
+ * Construye un mensaje para consultar directamente un producto individual con su foto
  */
 export const generateSingleProductMessage = (product, selectedSize = '', selectedColor = '') => {
-  let message = `Hola KS Store, estoy interesado en el producto *${product.name}* (Código: ${product.sku || 'N/A'}), precio ${formatCurrency(product.price)}.`;
+  let message = `Hola KS Store, quiero consultar por este producto:\n\n`;
+  message += `🔥 *${product.name}*\n`;
+  message += `• Código SKU: ${product.sku || 'N/A'}\n`;
+  message += `• Precio: ${formatCurrency(product.price)}\n`;
   
   const details = [];
   if (selectedSize && selectedSize !== 'Unitalla') {
@@ -121,15 +171,22 @@ export const generateSingleProductMessage = (product, selectedSize = '', selecte
   }
 
   if (details.length > 0) {
-    message += ` (${details.join(', ')})`;
+    message += `• Detalle: ${details.join(', ')}\n`;
   }
 
-  message += ` ¿Está disponible?`;
+  if (product.main_image) {
+    message += `📸 *Foto del producto:* ${getAbsoluteImageUrl(product.main_image)}\n`;
+  }
+  if (product.slug) {
+    message += `🔗 *Ver en tienda:* ${getAbsoluteProductUrl(product.slug)}\n`;
+  }
+
+  message += `\n¿Tienen disponibilidad para entrega o envío en Honduras?`;
   return message;
 };
 
 /**
- * Abre WhatsApp directamente con el pedido
+ * Abre WhatsApp directamente con el pedido estructurado
  */
 export const sendOrderToWhatsApp = (cart, customerData = {}, orderCode = '') => {
   const number = getWhatsAppNumber();
@@ -137,7 +194,7 @@ export const sendOrderToWhatsApp = (cart, customerData = {}, orderCode = '') => 
   const encodedMessage = encodeURIComponent(message);
   const whatsappUrl = `https://wa.me/${number}?text=${encodedMessage}`;
   window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-  return { success: true, orderCode };
+  return { success: true, orderCode, method: 'url' };
 };
 
 /**
@@ -149,4 +206,92 @@ export const sendProductQueryToWhatsApp = (product, selectedSize = '', selectedC
   const encodedMessage = encodeURIComponent(message);
   const whatsappUrl = `https://wa.me/${number}?text=${encodedMessage}`;
   window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+};
+
+/**
+ * Envía el pedido intentando adjuntar la imagen del producto directamente mediante la API
+ * nativa para compartir en dispositivos móviles (Web Share API).
+ * Si no está disponible o falla, abre WhatsApp directamente con la URL de la foto incluida.
+ */
+export const sendOrderToWhatsAppWithMedia = async (cart, customerData = {}, orderCode = '') => {
+  const code = orderCode || generateOrderCode();
+  const message = generateWhatsAppOrderMessage(cart, customerData, code);
+
+  // Intentar compartir con fotos en dispositivos móviles compatibles
+  if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+    try {
+      const filesToShare = [];
+      const itemsToFetch = cart.filter((i) => Boolean(i.main_image)).slice(0, 4);
+
+      for (const item of itemsToFetch) {
+        try {
+          const res = await fetch(item.main_image);
+          if (res.ok) {
+            const blob = await res.blob();
+            const mimeType = blob.type || 'image/jpeg';
+            const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
+            const cleanName = (item.name || 'producto').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 25);
+            const fileName = `ks_${cleanName}_${Date.now()}.${ext}`;
+            const file = new File([blob], fileName, { type: mimeType });
+            filesToShare.push(file);
+          }
+        } catch (fetchErr) {
+          console.warn('No se pudo convertir la imagen a archivo:', fetchErr);
+        }
+      }
+
+      if (filesToShare.length > 0 && navigator.canShare({ files: filesToShare })) {
+        await navigator.share({
+          title: `Pedido KS Store - ${code}`,
+          text: message,
+          files: filesToShare,
+        });
+        return { success: true, method: 'share', orderCode: code };
+      }
+    } catch (shareErr) {
+      if (shareErr.name === 'AbortError') {
+        // Usuario canceló explícitamente el modal de compartir
+        return { success: false, aborted: true, orderCode: code };
+      }
+      console.warn('Fallo al compartir con archivos, recurriendo a enlace directo de WhatsApp:', shareErr);
+    }
+  }
+
+  // Fallback seguro: Abrir WhatsApp con enlaces directos a las fotos en alta resolución
+  return sendOrderToWhatsApp(cart, customerData, code);
+};
+
+/**
+ * Consulta un producto individual intentando adjuntar su foto directamente
+ */
+export const sendProductQueryToWhatsAppWithMedia = async (product, selectedSize = '', selectedColor = '') => {
+  const message = generateSingleProductMessage(product, selectedSize, selectedColor);
+
+  if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare && product.main_image) {
+    try {
+      const res = await fetch(product.main_image);
+      if (res.ok) {
+        const blob = await res.blob();
+        const mimeType = blob.type || 'image/jpeg';
+        const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
+        const cleanName = (product.name || 'ks_producto').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 25);
+        const fileName = `ks_${cleanName}.${ext}`;
+        const file = new File([blob], fileName, { type: mimeType });
+
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: `KS Store - ${product.name}`,
+            text: message,
+            files: [file],
+          });
+          return;
+        }
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+      console.warn('Fallback a WhatsApp link para consulta:', err);
+    }
+  }
+
+  sendProductQueryToWhatsApp(product, selectedSize, selectedColor);
 };

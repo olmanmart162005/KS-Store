@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import { useCart } from '../../context/CartContext';
-import { formatCurrency, sendProductQueryToWhatsApp } from '../../services/whatsappService';
+import { formatCurrency, sendProductQueryToWhatsApp, sendProductQueryToWhatsAppWithMedia } from '../../services/whatsappService';
 import { ProductCard } from '../../components/ui/ProductCard';
 
 export const ProductDetail = () => {
@@ -88,14 +88,14 @@ export const ProductDetail = () => {
     setTimeout(() => setAddedSuccess(false), 2000);
   };
 
-  // Consulta directa por WhatsApp
+  // Consulta directa por WhatsApp con foto
   const handleWhatsAppQuery = () => {
     if (product.sizes?.length > 1 && !selectedSize) {
       setValidationError('Selecciona tu talla preferida para incluirla en la consulta de WhatsApp.');
       return;
     }
     setValidationError('');
-    sendProductQueryToWhatsApp(product, selectedSize, selectedColor);
+    sendProductQueryToWhatsAppWithMedia(product, selectedSize, selectedColor);
   };
 
   const discountPercent = product.compare_price && product.compare_price > product.price
@@ -339,13 +339,13 @@ export const ProductDetail = () => {
               )}
             </button>
 
-            {/* CONSULTAR POR WHATSAPP (Sección 10 y 11) */}
+            {/* CONSULTAR POR WHATSAPP CON FOTO */}
             <button
               onClick={handleWhatsAppQuery}
               className="w-full py-4 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-950 hover:scale-[1.01] active:scale-[0.99]"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Consultar por WhatsApp</span>
+              <span>Consultar por WhatsApp + Foto</span>
             </button>
           </div>
 
