@@ -23,10 +23,12 @@ import { generateOrderPDF } from '../../services/pdfService';
 export const Cart = () => {
   const { cart, updateQuantity, removeFromCart, clearCart, subtotal, totalItems, priceUpdateNotice, dismissPriceNotice } = useCart();
 
-  // Estados de datos del cliente
+  // Estados de datos del cliente (Obligatorios: nombre y celular)
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
+  const nameInputRef = React.useRef(null);
+  const phoneInputRef = React.useRef(null);
 
   // Estados de flujo de confirmación
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -35,7 +37,7 @@ export const Cart = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
-  // Validación y apertura del modal resumen (Sección 44.12)
+  // Validación obligatoria de Nombre y Celular antes de permitir enviar el pedido
   const handleInitiateOrder = () => {
     if (cart.length === 0) {
       setErrorMessage('El carrito está vacío.');
@@ -46,6 +48,26 @@ export const Cart = () => {
     const invalidItem = cart.find((i) => i.quantity < 1);
     if (invalidItem) {
       setErrorMessage(`El producto "${invalidItem.name}" tiene una cantidad no permitida.`);
+      return;
+    }
+
+    const cleanName = customerName.trim();
+    if (!cleanName || cleanName.length < 2) {
+      setErrorMessage('Por favor ingresa tu nombre completo en la cotización antes de enviar el pedido.');
+      if (nameInputRef.current) {
+        nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nameInputRef.current.focus();
+      }
+      return;
+    }
+
+    const cleanPhoneDigits = customerPhone.replace(/\D/g, '');
+    if (!customerPhone.trim() || cleanPhoneDigits.length < 8) {
+      setErrorMessage('Por favor ingresa un número de celular / WhatsApp válido (mínimo 8 dígitos) antes de enviar el pedido.');
+      if (phoneInputRef.current) {
+        phoneInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        phoneInputRef.current.focus();
+      }
       return;
     }
 
@@ -328,44 +350,74 @@ export const Cart = () => {
         {/* Columna Derecha: Formulario de Cliente & Resumen (Sección 44.11) */}
         <div className="lg:col-span-5 space-y-6">
           
-          {/* Información del Cliente (Opcional pero recomendado) */}
+          {/* Información del Cliente (Obligatorio: Nombre y Celular) */}
           <div className="p-6 rounded-2xl bg-zinc-900/60 border border-zinc-800 space-y-4">
-            <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-heading">
-              Tus Datos de Contacto
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-extrabold text-white uppercase tracking-wider font-heading">
+                Tus Datos para la Cotización
+              </h3>
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-950/80 border border-rose-800 text-rose-300">
+                Obligatorio
+              </span>
+            </div>
             <p className="text-xs text-zinc-400">
-              Facilita tus datos para anexarlos automáticamente al mensaje de WhatsApp.
+              Ingresa tu nombre y número de celular para generar tu cotización y enviarla por WhatsApp.
             </p>
+
+            {errorMessage && (
+              <div className="p-3.5 rounded-xl bg-rose-950/90 border border-rose-700 text-rose-200 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
             <div className="space-y-3">
               <div>
                 <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider block mb-1">
-                  Nombre Completo
+                  Nombre Completo <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <User className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
+                    ref={nameInputRef}
                     type="text"
+                    required
                     value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Ej: Juan Pérez"
-                    className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                    onChange={(e) => {
+                      setCustomerName(e.target.value);
+                      if (errorMessage) setErrorMessage('');
+                    }}
+                    placeholder="Ej: Juan Pérez (Obligatorio)"
+                    className={`w-full pl-10 pr-3 py-2.5 rounded-xl bg-zinc-950 border text-white placeholder-zinc-500 text-xs focus:outline-none transition-colors ${
+                      errorMessage && customerName.trim().length < 2
+                        ? 'border-rose-500 focus:border-rose-400'
+                        : 'border-zinc-700 focus:border-white'
+                    }`}
                   />
                 </div>
               </div>
 
               <div>
                 <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider block mb-1">
-                  Teléfono / WhatsApp de Contacto
+                  Número de Celular / WhatsApp <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
-                    type="text"
+                    ref={phoneInputRef}
+                    type="tel"
+                    required
                     value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="Ej: 9876-5432"
-                    className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors"
+                    onChange={(e) => {
+                      setCustomerPhone(e.target.value);
+                      if (errorMessage) setErrorMessage('');
+                    }}
+                    placeholder="Ej: 9876-5432 (Obligatorio)"
+                    className={`w-full pl-10 pr-3 py-2.5 rounded-xl bg-zinc-950 border text-white placeholder-zinc-500 text-xs focus:outline-none transition-colors ${
+                      errorMessage && customerPhone.replace(/\D/g, '').length < 8
+                        ? 'border-rose-500 focus:border-rose-400'
+                        : 'border-zinc-700 focus:border-white'
+                    }`}
                   />
                 </div>
               </div>
@@ -380,7 +432,7 @@ export const Cart = () => {
                     value={customerNotes}
                     onChange={(e) => setCustomerNotes(e.target.value)}
                     rows={2}
-                    placeholder="Ej: Enviar a San Pedro Sula / Entrega por la tarde"
+                    placeholder="Ej: Enviar a El Triunfo / San Pedro Sula / Entrega por la tarde"
                     className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-700 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-white transition-colors resize-none"
                   />
                 </div>
