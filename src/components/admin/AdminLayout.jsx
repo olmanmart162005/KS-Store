@@ -14,6 +14,7 @@ import {
   X,
   ExternalLink,
   ShieldCheck,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Toast } from '../ui/Toast';
@@ -31,6 +32,7 @@ export const AdminLayout = () => {
 
   const menuItems = [
     { label: 'Dashboard', path: '/admin', icon: LayoutDashboard },
+    { label: 'Pedidos y reportes', path: '/admin/pedidos', icon: FileText },
     { label: 'Productos', path: '/admin/productos', icon: Package },
     { label: 'Gorras', path: '/admin/gorras', icon: Crown },
     { label: 'Tenis', path: '/admin/tenis', icon: Footprints },

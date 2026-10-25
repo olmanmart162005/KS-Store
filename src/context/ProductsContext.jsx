@@ -7,6 +7,7 @@ const ProductsContext = createContext(null);
 const STORAGE_PRODUCTS_KEY = 'ks_store_custom_products';
 const STORAGE_SETTINGS_KEY = 'ks_store_custom_settings';
 const STORAGE_CATEGORIES_KEY = 'ks_store_custom_categories';
+const STORAGE_ORDERS_KEY = 'ks_store_orders_history';
 
 const CATEGORY_UUID_MAP = {
   gorras: '11111111-1111-1111-1111-111111111111',
@@ -43,6 +44,15 @@ export const ProductsProvider = ({ children }) => {
       return stored ? JSON.parse(stored) : initialSettings;
     } catch {
       return initialSettings;
+    }
+  });
+
+  const [orders, setOrders] = useState(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_ORDERS_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
     }
   });
 
@@ -214,6 +224,29 @@ export const ProductsProvider = ({ children }) => {
           // ignore
         }
       }
+
+      // 4. Cargar historial de pedidos (si existen permisos o sesión activa)
+      const { data: dbOrders, error: oError } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (!oError && Array.isArray(dbOrders)) {
+        setOrders((prev) => {
+          // Combinar pedidos de la base de datos con cualquier pedido local aún no sincronizado
+          const dbCodes = new Set(dbOrders.map((o) => o.order_code));
+          const localOnly = prev.filter((lo) => lo.order_code && !dbCodes.has(lo.order_code));
+          const merged = [...dbOrders, ...localOnly].sort(
+            (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+          );
+          try {
+            localStorage.setItem(STORAGE_ORDERS_KEY, JSON.stringify(merged));
+          } catch {
+            // ignore
+          }
+          return merged;
+        });
+      }
     } catch (err) {
       console.error('Error sincronizando con Supabase:', err);
       setSyncError(err.message || 'Error al sincronizar con la base de datos.');
@@ -237,6 +270,9 @@ export const ProductsProvider = ({ children }) => {
         fetchSupabaseData(true);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
+        fetchSupabaseData(true);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
         fetchSupabaseData(true);
       })
       .subscribe();
@@ -930,12 +966,207 @@ export const ProductsProvider = ({ children }) => {
     });
   };
 
+  /**
+   * CREAR Y REGISTRAR UN PEDIDO CON COPIA INMUTABLE DE PRECIOS E IMÁGENES (Sección 7, 9 y 11.E)
+   * Verifica los productos y precios contra el catálogo actual antes de generar el reporte.
+   * No descuenta inventario automáticamente.
+   */
+  const createOrder = async ({ cartItems = [], customer = {}, orderCode = '' }) => {
+    if (!Array.isArray(cartItems) || cartItems.length === 0) {
+      throw new Error('No se puede registrar un pedido con el carrito vacío.');
+    }
+
+    // Validar cada ítem contra el catálogo actual y congelar precio e imagen del momento
+    let verifiedTotal = 0;
+    const verifiedItems = cartItems.map((item) => {
+      const catalogProduct = products.find(
+        (p) => p.id === item.id || (item.sku && p.sku === item.sku) || (item.slug && p.slug === item.slug)
+      );
+
+      const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+      const rawPrice = catalogProduct ? Number(catalogProduct.price) : Number(item.price);
+      const unitPrice = Number.isFinite(rawPrice) && rawPrice >= 0 ? Number(rawPrice.toFixed(2)) : 0;
+      const lineSubtotal = Number((unitPrice * qty).toFixed(2));
+      verifiedTotal = Number((verifiedTotal + lineSubtotal).toFixed(2));
+
+      const frozenImage = catalogProduct?.main_image || item.main_image || item.image_url || '';
+
+      return {
+        product_id: catalogProduct?.id || item.id || null,
+        name: catalogProduct?.name || item.name || 'Producto KS Store',
+        sku: catalogProduct?.sku || item.sku || '',
+        brand: catalogProduct?.brand || item.brand || '',
+        category: catalogProduct?.category || item.category || '',
+        size: item.size || 'Única',
+        color: item.color || 'Estándar',
+        quantity: qty,
+        unit_price: unitPrice,
+        price: unitPrice,
+        subtotal: lineSubtotal,
+        main_image: frozenImage,
+        image_url: frozenImage,
+      };
+    });
+
+    const nowIso = new Date().toISOString();
+    const orderRecord = {
+      order_code: orderCode,
+      customer_name: customer?.name?.trim() || 'No especificado',
+      customer_phone: customer?.phone?.trim() || 'No especificado',
+      customer_notes: customer?.notes?.trim() || '',
+      total_amount: verifiedTotal,
+      items: verifiedItems,
+      status: 'pending', // Pendiente de confirmación
+      created_at: nowIso,
+    };
+
+    let savedDbOrder = null;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .insert([
+            {
+              order_code: orderRecord.order_code,
+              customer_name: orderRecord.customer_name,
+              customer_phone: orderRecord.customer_phone,
+              customer_notes: orderRecord.customer_notes,
+              total_amount: orderRecord.total_amount,
+              items: orderRecord.items,
+              status: 'pending',
+            },
+          ])
+          .select('*')
+          .maybeSingle();
+
+        if (!error && data) {
+          savedDbOrder = data;
+
+          // Si existe la tabla relacional order_items, insertar también el detalle normalizado
+          if (isUUID(data.id)) {
+            const relationalItems = verifiedItems.map((vi) => ({
+              order_id: data.id,
+              product_id: isUUID(vi.product_id) ? vi.product_id : null,
+              product_name: vi.name,
+              sku: vi.sku,
+              size: vi.size,
+              color: vi.color,
+              quantity: vi.quantity,
+              unit_price: vi.unit_price,
+              subtotal: vi.subtotal,
+              image_url: vi.main_image,
+            }));
+            await supabase.from('order_items').insert(relationalItems).then(() => {});
+          }
+        } else if (error) {
+          // Si la política RLS actual no devuelve SELECT a anon, hacer insert simple sin select
+          const { error: insertOnlyErr } = await supabase.from('orders').insert([
+            {
+              order_code: orderRecord.order_code,
+              customer_name: orderRecord.customer_name,
+              customer_phone: orderRecord.customer_phone,
+              customer_notes: orderRecord.customer_notes,
+              total_amount: orderRecord.total_amount,
+              items: orderRecord.items,
+              status: 'pending',
+            },
+          ]);
+          if (insertOnlyErr) {
+            console.warn('Aviso al registrar pedido en Supabase:', insertOnlyErr.message);
+          }
+        }
+      } catch (dbErr) {
+        console.warn('No se pudo sincronizar el pedido con Supabase:', dbErr);
+      }
+    }
+
+    const finalOrder = savedDbOrder || { id: `local-${Date.now()}`, ...orderRecord };
+
+    setOrders((prev) => {
+      const filtered = prev.filter((o) => o.order_code !== finalOrder.order_code);
+      const updated = [finalOrder, ...filtered];
+      try {
+        localStorage.setItem(STORAGE_ORDERS_KEY, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+
+    return {
+      order: finalOrder,
+      verifiedItems,
+      verifiedTotal,
+    };
+  };
+
+  /**
+   * ACTUALIZAR ESTADO DE UN PEDIDO (Acción exclusiva del Administrador)
+   */
+  const updateOrderStatus = async (orderIdOrCode, newStatus) => {
+    const validStatuses = ['pending', 'confirmed', 'preparing', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(newStatus)) {
+      throw new Error('Estado de pedido no válido.');
+    }
+
+    const targetOrder = orders.find(
+      (o) => o.id === orderIdOrCode || o.order_code === orderIdOrCode
+    );
+    if (!targetOrder) {
+      throw new Error('No se encontró el pedido especificado.');
+    }
+
+    if (isSupabaseConfigured && supabase && isUUID(targetOrder.id)) {
+      await ensureAuthenticatedForWrite();
+
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', targetOrder.id)
+        .select('*')
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(error.message || 'No se pudo actualizar el estado del pedido en Supabase.');
+      }
+
+      if (data) {
+        setOrders((prev) => {
+          const updated = prev.map((o) => (o.id === targetOrder.id ? data : o));
+          try {
+            localStorage.setItem(STORAGE_ORDERS_KEY, JSON.stringify(updated));
+          } catch {
+            // ignore
+          }
+          return updated;
+        });
+        return data;
+      }
+    }
+
+    const updatedLocal = { ...targetOrder, status: newStatus };
+    setOrders((prev) => {
+      const updated = prev.map((o) =>
+        o.id === targetOrder.id || o.order_code === targetOrder.order_code ? updatedLocal : o
+      );
+      try {
+        localStorage.setItem(STORAGE_ORDERS_KEY, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+    return updatedLocal;
+  };
+
   return (
     <ProductsContext.Provider
       value={{
         products,
         categories,
         settings,
+        orders,
         loading,
         syncError,
         refreshCatalog: fetchSupabaseData,
@@ -948,6 +1179,8 @@ export const ProductsProvider = ({ children }) => {
         updateCategory,
         updateSettings,
         uploadImage,
+        createOrder,
+        updateOrderStatus,
       }}
     >
       {children}

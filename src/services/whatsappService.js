@@ -1,17 +1,22 @@
 // ==============================================================================
-// KS STORE - SERVICIO CENTRALIZADO DE WHATSAPP
+// KS STORE — SERVICIO CENTRALIZADO DE WHATSAPP Y FORMATO DE PEDIDOS
 // ==============================================================================
 
 /**
- * Obtiene y formatea el número de WhatsApp de KS Store.
- * Utiliza la variable de entorno VITE_WHATSAPP_NUMBER o el número predeterminado.
+ * Obtiene y formatea el número de WhatsApp del encargado de KS Store.
+ * Utiliza el número configurado en tienda, la variable VITE_WHATSAPP_NUMBER o el predeterminado.
  * Siempre garantiza el código de país de Honduras (504).
  */
-export const getWhatsAppNumber = () => {
-  const envNumber = import.meta.env.VITE_WHATSAPP_NUMBER || '88761389';
-  // Elimina caracteres no numéricos
-  const cleanNumber = envNumber.replace(/\D/g, '');
-  
+export const getWhatsAppNumber = (customNumber = '') => {
+  const rawSource =
+    (typeof customNumber === 'string' && customNumber.trim()) ||
+    import.meta.env.VITE_WHATSAPP_NUMBER ||
+    '88761389';
+  const cleanNumber = String(rawSource).replace(/\D/g, '');
+
+  if (!cleanNumber) {
+    return '50488761389';
+  }
   if (cleanNumber.startsWith('504')) {
     return cleanNumber;
   }
@@ -21,8 +26,8 @@ export const getWhatsAppNumber = () => {
 /**
  * Obtiene el número con formato legible (+504 XXXX-XXXX)
  */
-export const getDisplayWhatsAppNumber = () => {
-  const raw = getWhatsAppNumber();
+export const getDisplayWhatsAppNumber = (customNumber = '') => {
+  const raw = getWhatsAppNumber(customNumber);
   const phone = raw.startsWith('504') ? raw.slice(3) : raw;
   if (phone.length === 8) {
     return `+504 ${phone.slice(0, 4)}-${phone.slice(4)}`;
@@ -31,38 +36,66 @@ export const getDisplayWhatsAppNumber = () => {
 };
 
 /**
- * Formatea un número a moneda Lempiras Hondureñas (L.)
+ * Formatea un número a moneda Lempiras Hondureñas (L. 3,799.00)
  */
 export const formatCurrency = (amount) => {
-  const num = Number(amount) || 0;
-  return `L. ${num.toLocaleString('es-HN', {
+  const num = Number(amount);
+  const safeNum = Number.isFinite(num) ? num : 0;
+  return `L. ${safeNum.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
 };
 
 /**
- * Genera un identificador único local para el pedido
- * Formato: KS-YYYYMMDD-XXX
+ * Genera un identificador único y seguro para el pedido evitando duplicados
+ * Formato: KS-YYYYMMDD-XXX (ej: KS-20261025-001)
  */
-export const generateOrderCode = () => {
+export const generateOrderCode = (existingCodes = []) => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
-  const randomSuffix = Math.floor(100 + Math.random() * 900); // 3 dígitos
-  return `KS-${year}${month}${day}-${randomSuffix}`;
+  const datePart = `${year}${month}${day}`;
+
+  const existingSet = new Set(
+    Array.isArray(existingCodes) ? existingCodes.map((c) => String(c).toUpperCase()) : []
+  );
+
+  // Secuencia incremental basada en pedidos previos del día o sufijo único de 3 dígitos
+  let counter = 1;
+  try {
+    const storageKey = `ks_order_seq_${datePart}`;
+    const prevSeq = parseInt(localStorage.getItem(storageKey) || '0', 10);
+    counter = Number.isFinite(prevSeq) && prevSeq >= 1 ? prevSeq + 1 : 1;
+    localStorage.setItem(storageKey, String(counter));
+  } catch {
+    counter = Math.floor(100 + Math.random() * 900);
+  }
+
+  let candidate = `KS-${datePart}-${String(counter).padStart(3, '0')}`;
+  let attempts = 0;
+  while (existingSet.has(candidate.toUpperCase()) && attempts < 50) {
+    const rand = Math.floor(100 + Math.random() * 900);
+    candidate = `KS-${datePart}-${rand}`;
+    attempts++;
+  }
+
+  return candidate;
 };
 
 /**
- * Convierte una ruta relativa de imagen a una URL absoluta pública accesible por WhatsApp
+ * Convierte una ruta relativa de imagen a una URL absoluta pública accesible
  */
 export const getAbsoluteImageUrl = (path) => {
   if (!path) return '';
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }
-  const baseUrl = 'https://ks-store-0606.vercel.app';
+  const baseUrl =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'https://ks-store-0606.vercel.app';
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
   return `${baseUrl}${cleanPath}`;
 };
@@ -76,61 +109,68 @@ export const getAbsoluteProductUrl = (slug) => {
 };
 
 /**
- * Verifica si el navegador soporta compartir archivos (fotos) nativamente (Android/iOS)
+ * Construye el mensaje estructurado de WhatsApp para un pedido (Sección 5 y 6)
  */
-export const canShareFiles = () => {
-  if (typeof navigator === 'undefined' || !navigator.share || !navigator.canShare) {
-    return false;
-  }
-  try {
-    const testFile = new File(['test'], 'test.txt', { type: 'text/plain' });
-    return navigator.canShare({ files: [testFile] });
-  } catch {
-    return false;
-  }
-};
-
-/**
- * Construye el mensaje estructurado de WhatsApp para un pedido — formato profesional
- */
-export const generateWhatsAppOrderMessage = (cart, customerData = {}, orderCode = '') => {
+export const generateWhatsAppOrderMessage = (
+  cart,
+  customerData = {},
+  orderCode = '',
+  options = {}
+) => {
   const code = orderCode || generateOrderCode();
+  const pdfFileName =
+    options.pdfFileName || `KS-STORE-PEDIDO-${code.replace(/^KS-/i, '')}.pdf`;
+  const pdfPublicUrl = options.pdfUrl || '';
 
-  let message = `🛍️ *PEDIDO KS STORE*\n`;
-  message += `📋 Código: *${code}*\n`;
-  message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+  let message = `Hola, KS Store. Quiero realizar el siguiente pedido.\n\n`;
+  message += `*PEDIDO KS STORE*\n\n`;
+  message += `Número: *${code}*\n`;
 
-  if (customerData.name || customerData.phone || customerData.notes) {
-    message += `👤 *DATOS DE CONTACTO*\n`;
-    if (customerData.name)  message += `› Nombre: *${customerData.name.trim()}*\n`;
-    if (customerData.phone) message += `› Teléfono: *${customerData.phone.trim()}*\n`;
-    if (customerData.notes) message += `› Dirección/Notas: ${customerData.notes.trim()}\n`;
-    message += `\n`;
+  if (customerData?.name?.trim()) {
+    message += `Cliente: ${customerData.name.trim()}\n`;
+  }
+  if (customerData?.phone?.trim()) {
+    message += `Teléfono: ${customerData.phone.trim()}\n`;
+  }
+  if (customerData?.notes?.trim()) {
+    message += `Comentarios: ${customerData.notes.trim()}\n`;
   }
 
-  message += `🛒 *PRODUCTOS (${cart.length})*\n`;
-  message += `━━━━━━━━━━━━━━━━━━━━\n`;
+  message += `\n*Productos:*\n`;
 
   let total = 0;
-  cart.forEach((item, index) => {
-    const itemSubtotal = item.price * item.quantity;
-    total += itemSubtotal;
+  let totalUnits = 0;
 
-    message += `\n*${index + 1}. ${item.name}*\n`;
-    if (item.sku) message += `   SKU: ${item.sku}\n`;
+  cart.forEach((item) => {
+    const qty = Math.max(1, Number(item.quantity) || 1);
+    const unitPrice = Math.max(0, Number(item.unit_price ?? item.price) || 0);
+    const lineSubtotal = Number((unitPrice * qty).toFixed(2));
+    total += lineSubtotal;
+    totalUnits += qty;
+
+    const details = [];
+    if (item.sku) details.push(`código ${item.sku}`);
     if (item.size && item.size !== 'Unitalla' && item.size !== 'Ajustable / Unitalla') {
-      message += `   Talla: ${item.size}\n`;
+      details.push(`talla ${item.size}`);
+    } else if (item.size) {
+      details.push(`talla única`);
     }
-    if (item.color) message += `   Color: ${item.color}\n`;
-    message += `   Cantidad: ${item.quantity}\n`;
-    message += `   Precio unitario: ${formatCurrency(item.price)}\n`;
-    message += `   *Subtotal: ${formatCurrency(itemSubtotal)}*\n`;
+    if (item.color) {
+      details.push(`color ${item.color.toLowerCase()}`);
+    }
+    details.push(`cantidad ${qty}`);
+
+    message += `- ${item.name}, ${details.join(', ')} (${formatCurrency(lineSubtotal)}).\n`;
   });
 
-  message += `\n━━━━━━━━━━━━━━━━━━━━\n`;
-  message += `💰 *TOTAL: ${formatCurrency(total)}*\n`;
-  message += `📦 Envío: A coordinar\n\n`;
-  message += `Quedo a la espera de su confirmación. ¡Gracias! 🙏`;
+  message += `\nCantidad de productos: ${totalUnits} ${totalUnits === 1 ? 'unidad' : 'unidades'}\n`;
+  message += `*Total estimado: ${formatCurrency(total)}.*\n\n`;
+
+  if (pdfPublicUrl) {
+    message += `Reporte PDF del pedido: ${pdfPublicUrl}\n\n`;
+  }
+
+  message += `Adjunto el reporte detallado del pedido (${pdfFileName}) para su revisión.`;
 
   return message;
 };
@@ -139,129 +179,63 @@ export const generateWhatsAppOrderMessage = (cart, customerData = {}, orderCode 
  * Construye un mensaje profesional para consultar un producto individual
  */
 export const generateSingleProductMessage = (product, selectedSize = '', selectedColor = '') => {
-  let message = `Hola KS Store, me interesa el siguiente producto:\n\n`;
-  message += `🔥 *${product.name}*\n`;
-  message += `   SKU: ${product.sku || 'N/A'}\n`;
-  message += `   Precio: *${formatCurrency(product.price)}*\n`;
+  let message = `Hola, KS Store. Me interesa consultar el siguiente producto:\n\n`;
+  message += `*${product.name}*\n`;
+  message += `Código: ${product.sku || 'N/A'}\n`;
+  message += `Precio: *${formatCurrency(product.price)}*\n`;
 
   if (selectedSize && selectedSize !== 'Unitalla') {
-    message += `   Talla: ${selectedSize}\n`;
+    message += `Talla: ${selectedSize}\n`;
   }
   if (selectedColor) {
-    message += `   Color: ${selectedColor}\n`;
+    message += `Color: ${selectedColor}\n`;
   }
 
-  message += `\n¿Está disponible? ¿Hacen envíos? 🙏`;
+  message += `\n¿Se encuentra disponible para entrega?`;
   return message;
+};
+
+/**
+ * Construye la URL oficial wa.me con el número internacional de Honduras y el mensaje codificado
+ */
+export const buildWhatsAppOrderUrl = (
+  cart,
+  customerData = {},
+  orderCode = '',
+  options = {}
+) => {
+  const number = getWhatsAppNumber(options.whatsappNumber);
+  const message = generateWhatsAppOrderMessage(cart, customerData, orderCode, options);
+  const encodedMessage = encodeURIComponent(message);
+  return `https://wa.me/${number}?text=${encodedMessage}`;
 };
 
 /**
  * Abre WhatsApp directamente con el pedido estructurado
  */
-export const sendOrderToWhatsApp = (cart, customerData = {}, orderCode = '') => {
-  const number = getWhatsAppNumber();
-  const message = generateWhatsAppOrderMessage(cart, customerData, orderCode);
-  const encodedMessage = encodeURIComponent(message);
-  const whatsappUrl = `https://wa.me/${number}?text=${encodedMessage}`;
+export const sendOrderToWhatsApp = (
+  cart,
+  customerData = {},
+  orderCode = '',
+  options = {}
+) => {
+  const whatsappUrl = buildWhatsAppOrderUrl(cart, customerData, orderCode, options);
   window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-  return { success: true, orderCode, method: 'url' };
+  return { success: true, orderCode, whatsappUrl, method: 'url' };
 };
 
 /**
  * Abre WhatsApp para consultar un producto individual
  */
-export const sendProductQueryToWhatsApp = (product, selectedSize = '', selectedColor = '') => {
-  const number = getWhatsAppNumber();
+export const sendProductQueryToWhatsApp = (
+  product,
+  selectedSize = '',
+  selectedColor = '',
+  customNumber = ''
+) => {
+  const number = getWhatsAppNumber(customNumber);
   const message = generateSingleProductMessage(product, selectedSize, selectedColor);
   const encodedMessage = encodeURIComponent(message);
   const whatsappUrl = `https://wa.me/${number}?text=${encodedMessage}`;
   window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-};
-
-/**
- * Envía el pedido intentando adjuntar la imagen del producto directamente mediante la API
- * nativa para compartir en dispositivos móviles (Web Share API).
- * Si no está disponible o falla, abre WhatsApp directamente con la URL de la foto incluida.
- */
-export const sendOrderToWhatsAppWithMedia = async (cart, customerData = {}, orderCode = '') => {
-  const code = orderCode || generateOrderCode();
-  const message = generateWhatsAppOrderMessage(cart, customerData, code);
-
-  // Intentar compartir con fotos en dispositivos móviles compatibles
-  if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
-    try {
-      const filesToShare = [];
-      const itemsToFetch = cart.filter((i) => Boolean(i.main_image)).slice(0, 4);
-
-      for (const item of itemsToFetch) {
-        try {
-          const res = await fetch(item.main_image);
-          if (res.ok) {
-            const blob = await res.blob();
-            const mimeType = blob.type || 'image/jpeg';
-            const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
-            const cleanName = (item.name || 'producto').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 25);
-            const fileName = `ks_${cleanName}_${Date.now()}.${ext}`;
-            const file = new File([blob], fileName, { type: mimeType });
-            filesToShare.push(file);
-          }
-        } catch (fetchErr) {
-          console.warn('No se pudo convertir la imagen a archivo:', fetchErr);
-        }
-      }
-
-      if (filesToShare.length > 0 && navigator.canShare({ files: filesToShare })) {
-        await navigator.share({
-          title: `Pedido KS Store - ${code}`,
-          text: message,
-          files: filesToShare,
-        });
-        return { success: true, method: 'share', orderCode: code };
-      }
-    } catch (shareErr) {
-      if (shareErr.name === 'AbortError') {
-        // Usuario canceló explícitamente el modal de compartir
-        return { success: false, aborted: true, orderCode: code };
-      }
-      console.warn('Fallo al compartir con archivos, recurriendo a enlace directo de WhatsApp:', shareErr);
-    }
-  }
-
-  // Fallback seguro: Abrir WhatsApp con enlaces directos a las fotos en alta resolución
-  return sendOrderToWhatsApp(cart, customerData, code);
-};
-
-/**
- * Consulta un producto individual intentando adjuntar su foto directamente
- */
-export const sendProductQueryToWhatsAppWithMedia = async (product, selectedSize = '', selectedColor = '') => {
-  const message = generateSingleProductMessage(product, selectedSize, selectedColor);
-
-  if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare && product.main_image) {
-    try {
-      const res = await fetch(product.main_image);
-      if (res.ok) {
-        const blob = await res.blob();
-        const mimeType = blob.type || 'image/jpeg';
-        const ext = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
-        const cleanName = (product.name || 'ks_producto').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 25);
-        const fileName = `ks_${cleanName}.${ext}`;
-        const file = new File([blob], fileName, { type: mimeType });
-
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            title: `KS Store - ${product.name}`,
-            text: message,
-            files: [file],
-          });
-          return;
-        }
-      }
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-      console.warn('Fallback a WhatsApp link para consulta:', err);
-    }
-  }
-
-  sendProductQueryToWhatsApp(product, selectedSize, selectedColor);
 };

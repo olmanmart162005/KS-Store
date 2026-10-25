@@ -13,15 +13,32 @@ import {
   FileText,
   AlertCircle,
   Download,
+  Loader2,
   X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCart } from '../../context/CartContext';
-import { formatCurrency, generateOrderCode, sendOrderToWhatsApp, getDisplayWhatsAppNumber } from '../../services/whatsappService';
-import { generateOrderPDF } from '../../services/pdfService';
+import { useProducts } from '../../context/ProductsContext';
+import {
+  formatCurrency,
+  generateOrderCode,
+  sendOrderToWhatsApp,
+  getDisplayWhatsAppNumber,
+} from '../../services/whatsappService';
+import { generateOrderPDF, getOrderPdfFileName } from '../../services/orderPdfService';
 
 export const Cart = () => {
-  const { cart, updateQuantity, removeFromCart, clearCart, subtotal, totalItems, priceUpdateNotice, dismissPriceNotice } = useCart();
+  const {
+    cart,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    subtotal,
+    totalItems,
+    priceUpdateNotice,
+    dismissPriceNotice,
+  } = useCart();
+  const { orders, createOrder, settings } = useProducts();
 
   // Estados de datos del cliente (Obligatorios: nombre y celular)
   const [customerName, setCustomerName] = useState('');
@@ -34,6 +51,7 @@ export const Cart = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [orderSent, setOrderSent] = useState(false);
   const [sentOrderCode, setSentOrderCode] = useState('');
+  const [lastOrderSnapshot, setLastOrderSnapshot] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
@@ -75,52 +93,98 @@ export const Cart = () => {
     setShowConfirmModal(true);
   };
 
-  // Confirmación y envío final por WhatsApp con fotos + descarga de PDF con fotos
+  // Confirmación: valida importes, genera y descarga el PDF real con fotos, registra pedido y abre WhatsApp
   const handleConfirmAndSend = async () => {
-    const code = generateOrderCode();
-    setSentOrderCode(code);
+    if (generatingPdf || cart.length === 0) return;
 
-    const customerData = {
-      name: customerName,
-      phone: customerPhone,
-      notes: customerNotes,
-    };
+    setGeneratingPdf(true);
+    setErrorMessage('');
 
-    const cartSnapshot = [...cart];
-
-    // 1. Abre WhatsApp directo al número +504 8876-1389 con el pedido + links de fotos
-    sendOrderToWhatsApp(cartSnapshot, customerData, code);
-
-    // 2. Genera y descarga automáticamente el PDF ilustrado con las fotos del pedido
     try {
-      setGeneratingPdf(true);
-      await generateOrderPDF(cartSnapshot, customerData, code);
+      const existingCodes = Array.isArray(orders) ? orders.map((o) => o.order_code) : [];
+      const code = generateOrderCode(existingCodes);
+      const pdfFileName = getOrderPdfFileName(code);
+
+      const customerData = {
+        name: customerName.trim(),
+        phone: customerPhone.trim(),
+        notes: customerNotes.trim(),
+      };
+
+      // 1. Verificar precios contra el catálogo actual y registrar el pedido con estado 'pending'
+      const { verifiedItems, verifiedTotal } = await createOrder({
+        cartItems: cart,
+        customer: customerData,
+        orderCode: code,
+      });
+
+      // 2. Generar y descargar el documento PDF real A4 con fotografías reales ANTES de vaciar el carrito
+      await generateOrderPDF(verifiedItems, customerData, code, {
+        status: 'pending',
+        autoDownload: true,
+      });
+
+      // 3. Abrir WhatsApp dirigido al encargado con el resumen del pedido
+      const waResult = sendOrderToWhatsApp(verifiedItems, customerData, code, {
+        whatsappNumber: settings?.whatsapp_number,
+        pdfFileName,
+      });
+
+      setSentOrderCode(code);
+      setLastOrderSnapshot({
+        code,
+        pdfFileName,
+        items: verifiedItems,
+        customer: customerData,
+        total: verifiedTotal,
+        whatsappUrl: waResult.whatsappUrl,
+      });
+
+      // 4. Limpiar el carrito únicamente después de haber generado correctamente el documento PDF
+      clearCart();
+      setShowConfirmModal(false);
+      setOrderSent(true);
+
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 60,
+          origin: { y: 0.6 },
+          colors: ['#e11d48', '#ffffff', '#10b981'],
+        });
+      } catch {
+        // Ignorar si canvas-confetti no está disponible
+      }
     } catch (err) {
-      console.warn('No se pudo generar el PDF adjunto:', err);
+      console.error('Error al generar el reporte del pedido:', err);
+      setErrorMessage(
+        err.message ||
+          'Ocurrió un error al generar el reporte PDF. Tus productos siguen guardados en el carrito; inténtalo nuevamente.'
+      );
     } finally {
       setGeneratingPdf(false);
     }
+  };
 
-    // Limpiar carrito
-    clearCart();
-
-    // Pantalla de éxito + confeti
-    setShowConfirmModal(false);
-    setOrderSent(true);
-
+  // Permitir volver a descargar el PDF en la pantalla final si el cliente lo necesita
+  const handleRedownloadPdf = async () => {
+    if (!lastOrderSnapshot || generatingPdf) return;
     try {
-      confetti({
-        particleCount: 80,
-        spread: 60,
-        origin: { y: 0.6 },
-        colors: ['#e11d48', '#ffffff', '#10b981'],
-      });
-    } catch {
-      // Ignorar si canvas-confetti no está disponible
+      setGeneratingPdf(true);
+      await generateOrderPDF(
+        lastOrderSnapshot.items,
+        lastOrderSnapshot.customer,
+        lastOrderSnapshot.code,
+        { status: 'pending', autoDownload: true }
+      );
+    } catch (err) {
+      console.error('Error al volver a descargar el PDF:', err);
+    } finally {
+      setGeneratingPdf(false);
     }
   };
 
-  // Pantalla de Pedido Enviado Exitosamente (Sección 44.16)
+  // Pantalla Posterior a Generar el Reporte y Abrir WhatsApp
   if (orderSent) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 sm:py-24 text-center">
@@ -131,21 +195,56 @@ export const Cart = () => {
 
           <div className="space-y-2">
             <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">
-              Código de Pedido: {sentOrderCode}
+              Número de Pedido: {sentOrderCode}
             </span>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white font-heading">
-              ¡PEDIDO ENVIADO!
+              ¡REPORTE PDF GENERADO!
             </h1>
             <p className="text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
-              Tu pedido fue preparado correctamente para enviarlo a <strong>KS Store</strong> por WhatsApp y se descargó el resumen PDF con las fotos de tus productos.
+              Se descargó tu reporte oficial <strong>{lastOrderSnapshot?.pdfFileName}</strong> con las fotografías y precios de tus productos, y se abrió WhatsApp para enviarlo al encargado de <strong>KS Store</strong>.
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800/80 text-xs text-zinc-400 text-left space-y-2">
-            <p className="font-semibold text-zinc-300">¿Qué sigue ahora?</p>
-            <p>1. En el chat de WhatsApp (+504 8876-1389), envía el mensaje prellenado y adjunta el archivo PDF descargado si deseas compartir el catálogo visual de tu pedido.</p>
-            <p>2. Conserva tu número de pedido <strong>{sentOrderCode}</strong> para cualquier seguimiento.</p>
+          <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800/80 text-xs text-zinc-300 text-left space-y-2.5">
+            <p className="font-bold text-white uppercase tracking-wider text-[11px]">
+              Pasos para completar tu envío en WhatsApp:
+            </p>
+            <p>
+              1. En la conversación de WhatsApp abierta (<strong>{getDisplayWhatsAppNumber(settings?.whatsapp_number)}</strong>), envía el mensaje con el resumen de tu pedido.
+            </p>
+            <p>
+              2. <strong>Adjunta el archivo PDF descargado ({lastOrderSnapshot?.pdfFileName})</strong> directamente en el chat para que el encargado revise las fotografías y confirme disponibilidad.
+            </p>
+            <p className="text-zinc-400">
+              Estado actual: <span className="text-amber-400 font-bold">Pendiente de confirmación</span>.
+            </p>
           </div>
+
+          {lastOrderSnapshot && (
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleRedownloadPdf}
+                disabled={generatingPdf}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span>{generatingPdf ? 'Generando PDF...' : 'Descargar PDF Nuevamente'}</span>
+              </button>
+
+              {lastOrderSnapshot.whatsappUrl && (
+                <a
+                  href={lastOrderSnapshot.whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Abrir WhatsApp Nuevamente</span>
+                </a>
+              )}
+            </div>
+          )}
 
           <div className="pt-2">
             <Link
@@ -549,22 +648,35 @@ export const Cart = () => {
             </div>
 
             <p className="text-[11px] text-zinc-400 text-center leading-relaxed">
-              ¿Deseas generar el mensaje y abrir WhatsApp ahora mismo con el número oficial de KS Store ({getDisplayWhatsAppNumber()})?
+              Se descargará tu reporte oficial en PDF con las fotografías de tus productos y se abrirá WhatsApp ({getDisplayWhatsAppNumber(settings?.whatsapp_number)}) con el resumen del pedido.
             </p>
 
             <div className="grid grid-cols-2 gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => setShowConfirmModal(false)}
-                className="py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase tracking-wider transition-colors"
+                disabled={generatingPdf}
+                className="py-3 px-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs uppercase tracking-wider transition-colors disabled:opacity-50"
               >
                 Volver al Carrito
               </button>
               <button
+                type="button"
                 onClick={handleConfirmAndSend}
-                className="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors shadow-lg shadow-emerald-950"
+                disabled={generatingPdf}
+                className="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors shadow-lg shadow-emerald-950 disabled:opacity-50 cursor-pointer"
               >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>Enviar por WhatsApp</span>
+                {generatingPdf ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Generando PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Generar PDF y Enviar</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

@@ -13,6 +13,7 @@ import {
   Tags,
   Edit2,
   RefreshCw,
+  FileText,
 } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import { useCart } from '../../context/CartContext';
@@ -20,13 +21,15 @@ import { formatCurrency } from '../../services/whatsappService';
 import { ProductFormModal } from '../../components/admin/ProductFormModal';
 
 export const Dashboard = () => {
-  const { products, toggleFeatured, refreshCatalog, loading } = useProducts();
+  const { products, orders = [], toggleFeatured, refreshCatalog, loading } = useProducts();
   const { showToast } = useCart();
 
   const [editingProduct, setEditingProduct] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const totalProducts = products.length;
+  const totalOrders = orders.length;
+  const pendingOrders = orders.filter((o) => !o.status || o.status === 'pending').length;
   const totalGorras = products.filter((p) => p.category === 'gorras').length;
   const totalTenis = products.filter((p) => p.category === 'tenis').length;
   const totalAvailable = products.filter((p) => p.status !== 'sold_out' && p.stock > 0).length;
@@ -131,6 +134,24 @@ export const Dashboard = () => {
       {/* Banner de Módulos de Gestión */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link
+          to="/admin/pedidos"
+          className="p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800 hover:border-zinc-700 transition-all flex items-center justify-between group"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-blue-950/60 border border-blue-800 text-blue-400 flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-sm">Pedidos y Reportes</h3>
+              <p className="text-[11px] text-zinc-400">
+                {totalOrders} pedidos ({pendingOrders} pendientes)
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
+        </Link>
+
+        <Link
           to="/admin/gorras"
           className="p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800 hover:border-zinc-700 transition-all flex items-center justify-between group"
         >
@@ -173,22 +194,6 @@ export const Dashboard = () => {
             <div>
               <h3 className="font-bold text-white text-sm">Control de Inventario</h3>
               <p className="text-[11px] text-zinc-400">{totalStockUnits} uds en existencia</p>
-            </div>
-          </div>
-          <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-1 transition-all" />
-        </Link>
-
-        <Link
-          to="/admin/categorias"
-          className="p-5 rounded-2xl bg-zinc-900/70 border border-zinc-800 hover:border-zinc-700 transition-all flex items-center justify-between group"
-        >
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-blue-950/60 border border-blue-800 text-blue-400 flex items-center justify-center shrink-0">
-              <Tags className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white text-sm">Categorías</h3>
-              <p className="text-[11px] text-zinc-400">Gorras, Tenis & Moda</p>
             </div>
           </div>
           <ArrowRight className="w-4 h-4 text-zinc-500 group-hover:text-white group-hover:translate-x-1 transition-all" />

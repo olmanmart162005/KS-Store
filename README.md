@@ -78,8 +78,9 @@ La base de datos de **Supabase (PostgreSQL)** es la fuente principal y permanent
    - `database/policies.sql` (Aplica políticas de seguridad RLS)
    - `database/storage.sql` (Crea y configura el bucket público `products` en Supabase Storage)
    - `database/seed.sql` (Inserta categorías y los 51 productos iniciales con las 43 fotos reales)
-4. **Si ya tienes la base de datos creada**, ejecuta únicamente la migración segura:
+4. **Si ya tienes la base de datos creada**, ejecuta las migraciones seguras:
    - `database/migrations/001_fix_persistence_and_schema.sql` (Agrega columnas `model` y `attributes`, crea trigger `updated_at`, inserta los 8 modelos de tenis faltantes sin tocar tus gorras existentes, pobla tallas, confirma el correo del administrador y activa Supabase Realtime).
+   - `database/migrations/002_orders_and_order_items.sql` (Configura `orders` y `order_items` para almacenar el historial de pedidos con instantánea histórica de precios e imágenes).
 5. Agrega tu `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` a tu archivo `.env`.
 
 ### Autenticación del Administrador en Supabase
@@ -92,26 +93,26 @@ Para que las políticas de seguridad RLS (`TO authenticated`) permitan guardar c
 
 ---
 
-## 🛒 Flujo del Carrito y Pedido por WhatsApp + PDF Ilustrado
+## 🛒 Flujo del Carrito, Reporte PDF A4 y Pedido por WhatsApp
 
-El cliente disfruta de una experiencia fluida de compra:
+El cliente disfruta de una experiencia fluida y transparente de pedido:
 1. Navega por el catálogo o colecciones de gorras y tenis.
 2. Selecciona su talla y color con validación previa.
 3. Agrega productos al carrito con notificación Toast y sincronización automática si un precio cambia en tiempo real.
-4. Puede revisar su carrito en cualquier momento desde el botón del Header o en `/carrito`.
-5. Modifica cantidades con actualización instantánea de subtotales.
-6. Opcionalmente completa su nombre, teléfono y dirección.
-7. Al presionar **Enviar Pedido por WhatsApp**:
-   - Se muestra un modal de resumen de confirmación con el código único del pedido (`KS-YYYYMMDD-XXX`).
-   - Se abre WhatsApp directo al número oficial **+504 8876-1389** con todos los productos desglosados y enlaces a las fotografías.
-   - Se descarga automáticamente un **PDF ilustrado con las fotografías de los productos** seleccionados.
+4. Revisa su carrito desde `/carrito` y modifica cantidades con actualización instantánea de subtotales.
+5. Completa obligatoriamente su **nombre completo** y **número de celular** (más comentarios opcionales).
+6. Al presionar **Enviar Pedido por WhatsApp** y confirmar:
+   - El sistema verifica los precios actuales del catálogo sin descontar stock automáticamente y congela una instantánea histórica (`unit_price` e `image_url`) del pedido.
+   - Se genera y descarga automáticamente un **documento PDF A4 vectorial real (`src/services/orderPdfService.js`)** sobre fondo blanco (`KS-STORE-PEDIDO-YYYYMMDD-XXX.pdf`) con texto seleccionable, logo oficial, tabla alineada con fotografías reales incrustadas de cada producto (soportando JPG, PNG y WebP con proporción original), importes alineados a la derecha, paginación multipágina con repetición de encabezados, nota legal y numeración de páginas.
+   - Se abre WhatsApp con el resumen estructurado del pedido y se muestran instrucciones claras para adjuntar el archivo PDF recién descargado en el chat.
 
 ---
 
 ## 🛡️ Panel Administrativo (`/admin`)
 
 Accediendo desde `/admin/login`:
-- **Dashboard:** Estadísticas reales calculadas directamente desde la base de datos (total de productos, gorras, tenis, unidades en inventario, valor total del inventario en Lempiras, agotados y por agotarse).
+- **Dashboard:** Estadísticas reales calculadas directamente desde la base de datos (total de productos, pedidos registrados, gorras, tenis, unidades en inventario, valor total del inventario en Lempiras, agotados y destacados).
+- **Pedidos y reportes (`/admin/pedidos`):** Historial completo de pedidos generados desde el catálogo, búsqueda por número de pedido (`KS-YYYYMMDD-XXX`) o cliente, filtros por fecha y estado, vista detallada de productos con foto e importe histórico, regeneración/descarga del PDF A4 en cualquier momento y cambio de estado (`Pendiente de confirmación`, `Confirmado`, `En preparación`, `Entregado`, `Cancelado`).
 - **Productos (`/admin/productos`):** CRUD completo (Ver detalles, Editar todos los campos sin restricciones, Duplicar y Eliminar productos con subida a Supabase Storage y validación estricta de respuesta de base de datos).
 - **Gorras (`/admin/gorras`):** Gestión visual de gorras con edición rápida controlada de precios/stock y acceso al modal de edición completa.
 - **Tenis (`/admin/tenis`):** Gestión completa de calzado, marcas, modelos, tallas y variantes.
