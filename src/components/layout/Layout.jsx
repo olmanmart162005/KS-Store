@@ -5,55 +5,49 @@ import { Footer } from './Footer';
 import { MiniCartDrawer } from './MiniCartDrawer';
 import { Toast } from '../ui/Toast';
 
+// Memoria ligera en RAM para no bloquear el scroll del navegador
+const scrollMemory = new Map();
+
 export const Layout = () => {
   const location = useLocation();
-  const prevPathRef = useRef(location.pathname + location.search);
+  const prevPathRef = useRef(location.pathname);
 
-  // Guardar posición exacta de scroll mientras navega por el catálogo/inicio
+  // Guardar posición de scroll en memoria sin bloquear el hilo principal
   useEffect(() => {
-    const currentKey = `ks_scroll_${location.pathname}${location.search}`;
-    const isProductPage = location.pathname.startsWith('/producto/');
+    const currentPath = location.pathname;
+    if (currentPath.startsWith('/producto/')) return;
 
-    if (!isProductPage) {
-      const handleScroll = () => {
-        try {
-          sessionStorage.setItem(currentKey, String(window.scrollY));
-        } catch {
-          // ignore
-        }
-      };
-      window.addEventListener('scroll', handleScroll, { passive: true });
-      return () => window.removeEventListener('scroll', handleScroll);
-    }
-  }, [location.pathname, location.search]);
+    const handleScroll = () => {
+      scrollMemory.set(currentPath, window.scrollY);
+    };
 
-  // Restaurar posición instantáneamente al salir de un producto, o ir arriba sin animación al entrar
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [location.pathname]);
+
+  // Cambiar posición únicamente cuando cambia la ruta (pathname)
   useEffect(() => {
-    const currentFull = location.pathname + location.search;
-    const prevFull = prevPathRef.current;
-    const isEnteringProduct = location.pathname.startsWith('/producto/');
-    const isLeavingProduct = prevFull.startsWith('/producto/') && !isEnteringProduct;
+    const currentPath = location.pathname;
+    const prevPath = prevPathRef.current;
+
+    if (currentPath === prevPath) return;
+
+    const isEnteringProduct = currentPath.startsWith('/producto/');
+    const isLeavingProduct = prevPath.startsWith('/producto/') && !isEnteringProduct;
 
     if (isEnteringProduct) {
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-    } else if (isLeavingProduct) {
-      try {
-        const savedScroll = sessionStorage.getItem(`ks_scroll_${currentFull}`);
-        if (savedScroll !== null) {
-          const targetY = parseInt(savedScroll, 10) || 0;
-          requestAnimationFrame(() => {
-            window.scrollTo({ top: targetY, left: 0, behavior: 'instant' });
-          });
-        }
-      } catch {
-        // ignore
-      }
-    } else if (currentFull !== prevFull) {
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      window.scrollTo(0, 0);
+    } else if (isLeavingProduct && scrollMemory.has(currentPath)) {
+      const savedY = scrollMemory.get(currentPath) || 0;
+      requestAnimationFrame(() => {
+        window.scrollTo(0, savedY);
+      });
+    } else {
+      window.scrollTo(0, 0);
     }
 
-    prevPathRef.current = currentFull;
-  }, [location.pathname, location.search]);
+    prevPathRef.current = currentPath;
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">

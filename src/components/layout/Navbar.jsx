@@ -25,12 +25,13 @@ export const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [scrolled, setScrolled] = useState(false);
 
-  // Escuchar scroll para fondo dinámico
+  // Escuchar scroll para fondo dinámico sin re-renderizar en cada píxel
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      const isPastThreshold = window.scrollY > 20;
+      setScrolled((prev) => (prev !== isPastThreshold ? isPastThreshold : prev));
     };
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 

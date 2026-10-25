@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ShoppingBag, 
@@ -21,10 +21,11 @@ export const ProductDetail = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { products } = useProducts();
-  const { addToCart, showToast } = useCart();
+  const { addToCart } = useCart();
 
   // Buscar producto por slug o por id
   const product = products.find((p) => p.slug === slug || p.id === slug);
+  const initializedSlugRef = useRef(null);
 
   // Estados de configuración de producto
   const [selectedImage, setSelectedImage] = useState('');
@@ -35,7 +36,8 @@ export const ProductDetail = () => {
   const [addedSuccess, setAddedSuccess] = useState(false);
 
   useEffect(() => {
-    if (product) {
+    if (product && initializedSlugRef.current !== slug) {
+      initializedSlugRef.current = slug;
       setSelectedImage(product.main_image);
       // Preseleccionar si solo tiene una talla (ej. gorras)
       if (product.sizes?.length === 1) {
@@ -49,7 +51,6 @@ export const ProductDetail = () => {
       }
       setQuantity(1);
       setValidationError('');
-      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
   }, [product, slug]);
 
