@@ -89,7 +89,7 @@ export const Navbar = () => {
                 KS STORE
               </span>
               <span className="text-[10px] tracking-widest text-zinc-400 uppercase font-bold">
-                Streetwear & Caps
+                Gorras y Moda Urbana
               </span>
             </div>
           </Link>

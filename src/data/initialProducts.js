@@ -1,19 +1,19 @@
 export const initialCategories = [
-  { id: "cat-gorras", name: "Gorras", slug: "gorras", icon: "Crown", description: "Gorras exclusivas de diseñador, New Era, pedrería y streetwear." },
-  { id: "cat-tenis", name: "Tenis", slug: "tenis", icon: "Footprints", description: "Sneakers auténticos, lanzamientos exclusivos y siluetas urbanas." },
-  { id: "cat-moda", name: "Moda Urbana", slug: "moda-urbana", icon: "Shirt", description: "Prendas y accesorios que definen tu presencia en la calle." }
+  { id: "cat-gorras", name: "Gorras", slug: "gorras", icon: "Crown", description: "Gorras exclusivas de diseñador, New Era, pedrería y moda urbana." },
+  { id: "cat-tenis", name: "Tenis", slug: "tenis", icon: "Footprints", description: "Calzado auténtico, lanzamientos exclusivos y siluetas urbanas." },
+  { id: "cat-moda", name: "Moda Urbana", slug: "moda-urbana", icon: "Shirt", description: "Prendas y accesorios que definen tu presencia." }
 ];
 
 export const initialSettings = {
   store_name: "KS Store",
-  tagline: "Estilo que te representa.",
+  tagline: "Estilo que te representa • Orgullo Triunfeño",
   whatsapp_number: "88761389",
   instagram_url: "https://www.instagram.com/ks.store_hn",
   facebook_url: "",
-  address: "Honduras",
+  address: "El Triunfo, Choluteca, Honduras",
   schedule: "Lunes a Sábado: 9:00 AM - 7:00 PM",
   hero_title: "ESTILO QUE TE REPRESENTA",
-  hero_subtitle: "Colección exclusiva de gorras de diseñador, sneakers y moda urbana de alto impacto."
+  hero_subtitle: "KS Store es tu tienda en línea de gorras, tenis y moda urbana en Honduras. Con orgullo Triunfeño, te ofrecemos la selección más cotizada en gorras de diseñador, pedrería fina y calzado urbano con envíos a todo el país."
 };
 
 export const initialProducts = [

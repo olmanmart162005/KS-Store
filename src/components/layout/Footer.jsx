@@ -73,12 +73,12 @@ export const Footer = () => {
                   KS STORE
                 </span>
                 <span className="text-[10px] tracking-widest text-zinc-500 uppercase font-bold">
-                  Streetwear & Caps
+                  Gorras y Moda Urbana
                 </span>
               </div>
             </div>
             <p className="text-xs text-zinc-400 leading-relaxed">
-              Tu destino definitivo para gorras de diseñador, pedrería exclusiva, sneakers y las piezas más cotizadas de la moda urbana. Estilo que te representa.
+              Tu destino definitivo para gorras de diseñador, pedrería exclusiva, tenis y las piezas más cotizadas de la moda urbana. Estilo que te representa con orgullo Triunfeño.
             </p>
             <div className="flex items-center gap-2 pt-2">
               <a

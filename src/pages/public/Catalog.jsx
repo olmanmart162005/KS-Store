@@ -45,18 +45,32 @@ export const Catalog = ({ initialCategory = null }) => {
     }
   }, [initialCategory, searchParams]);
 
+  // Productos visibles públicamente (excluir ocultos)
+  const visibleProducts = useMemo(() => {
+    return products.filter((p) => p.status !== 'hidden');
+  }, [products]);
+
+  const gorrasCount = useMemo(
+    () => visibleProducts.filter((p) => p.category === 'gorras').length,
+    [visibleProducts]
+  );
+  const tenisCount = useMemo(
+    () => visibleProducts.filter((p) => p.category === 'tenis').length,
+    [visibleProducts]
+  );
+
   // Extraer marcas y tallas únicas disponibles
   const availableBrands = useMemo(() => {
     const brands = new Set();
-    products.forEach((p) => {
+    visibleProducts.forEach((p) => {
       if (p.brand) brands.add(p.brand);
     });
     return Array.from(brands).sort();
-  }, [products]);
+  }, [visibleProducts]);
 
   const availableSizes = useMemo(() => {
     const sizes = new Set();
-    products.forEach((p) => {
+    visibleProducts.forEach((p) => {
       if (p.sizes && Array.isArray(p.sizes)) {
         p.sizes.forEach((s) => {
           if (s && s !== 'Unitalla' && s !== 'Ajustable / Unitalla') {
@@ -66,11 +80,11 @@ export const Catalog = ({ initialCategory = null }) => {
       }
     });
     return Array.from(sizes).sort((a, b) => Number(a) - Number(b));
-  }, [products]);
+  }, [visibleProducts]);
 
   // Lógica de filtrado y ordenamiento reactivo
   const filteredProducts = useMemo(() => {
-    return products
+    return visibleProducts
       .filter((p) => {
         // Filtro por Búsqueda (Nombre, Marca, SKU, Descripción)
         if (search.trim()) {
@@ -122,7 +136,7 @@ export const Catalog = ({ initialCategory = null }) => {
         if (sortBy === 'featured') return (b.featured ? 1 : 0) - (a.featured ? 1 : 0);
         return 0;
       });
-  }, [products, search, selectedCategory, selectedBrand, selectedSize, priceRange, onlyAvailable, onlySale, sortBy]);
+  }, [visibleProducts, search, selectedCategory, selectedBrand, selectedSize, priceRange, onlyAvailable, onlySale, sortBy]);
 
   const handleSortChange = (e) => {
     const val = e.target.value;
@@ -242,7 +256,7 @@ export const Catalog = ({ initialCategory = null }) => {
                 : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'
             }`}
           >
-            Todos ({products.length})
+            Todos ({visibleProducts.length})
           </button>
           <button
             onClick={() => setSelectedCategory('gorras')}
@@ -253,7 +267,7 @@ export const Catalog = ({ initialCategory = null }) => {
             }`}
           >
             <Crown className="w-3.5 h-3.5 text-amber-400" />
-            Gorras (43)
+            Gorras ({gorrasCount})
           </button>
           <button
             onClick={() => setSelectedCategory('tenis')}
@@ -264,7 +278,7 @@ export const Catalog = ({ initialCategory = null }) => {
             }`}
           >
             <Footprints className="w-3.5 h-3.5 text-rose-400" />
-            Tenis (8)
+            Tenis ({tenisCount})
           </button>
         </div>
       </div>

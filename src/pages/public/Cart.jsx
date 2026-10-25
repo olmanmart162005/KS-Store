@@ -11,14 +11,17 @@ import {
   User,
   Phone,
   FileText,
-  AlertCircle
+  AlertCircle,
+  Download,
+  X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCart } from '../../context/CartContext';
 import { formatCurrency, generateOrderCode, sendOrderToWhatsApp, getDisplayWhatsAppNumber } from '../../services/whatsappService';
+import { generateOrderPDF } from '../../services/pdfService';
 
 export const Cart = () => {
-  const { cart, updateQuantity, removeFromCart, clearCart, subtotal, totalItems } = useCart();
+  const { cart, updateQuantity, removeFromCart, clearCart, subtotal, totalItems, priceUpdateNotice, dismissPriceNotice } = useCart();
 
   // Estados de datos del cliente
   const [customerName, setCustomerName] = useState('');
@@ -30,6 +33,7 @@ export const Cart = () => {
   const [orderSent, setOrderSent] = useState(false);
   const [sentOrderCode, setSentOrderCode] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   // Validación y apertura del modal resumen (Sección 44.12)
   const handleInitiateOrder = () => {
@@ -49,8 +53,8 @@ export const Cart = () => {
     setShowConfirmModal(true);
   };
 
-  // Confirmación y envío final por WhatsApp con fotos — va directo al número de KS Store
-  const handleConfirmAndSend = () => {
+  // Confirmación y envío final por WhatsApp con fotos + descarga de PDF con fotos
+  const handleConfirmAndSend = async () => {
     const code = generateOrderCode();
     setSentOrderCode(code);
 
@@ -60,8 +64,20 @@ export const Cart = () => {
       notes: customerNotes,
     };
 
-    // Abre WhatsApp directo al número +504 8876-1389 con el pedido + links de fotos
-    sendOrderToWhatsApp(cart, customerData, code);
+    const cartSnapshot = [...cart];
+
+    // 1. Abre WhatsApp directo al número +504 8876-1389 con el pedido + links de fotos
+    sendOrderToWhatsApp(cartSnapshot, customerData, code);
+
+    // 2. Genera y descarga automáticamente el PDF ilustrado con las fotos del pedido
+    try {
+      setGeneratingPdf(true);
+      await generateOrderPDF(cartSnapshot, customerData, code);
+    } catch (err) {
+      console.warn('No se pudo generar el PDF adjunto:', err);
+    } finally {
+      setGeneratingPdf(false);
+    }
 
     // Limpiar carrito
     clearCart();
@@ -99,13 +115,13 @@ export const Cart = () => {
               ¡PEDIDO ENVIADO!
             </h1>
             <p className="text-sm text-zinc-400 max-w-md mx-auto leading-relaxed">
-              Tu pedido fue preparado correctamente para enviarlo a <strong>KS Store</strong> por WhatsApp. Nuestro equipo responderá a la brevedad para coordinar la entrega y confirmación final.
+              Tu pedido fue preparado correctamente para enviarlo a <strong>KS Store</strong> por WhatsApp y se descargó el resumen PDF con las fotos de tus productos.
             </p>
           </div>
 
           <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800/80 text-xs text-zinc-400 text-left space-y-2">
             <p className="font-semibold text-zinc-300">¿Qué sigue ahora?</p>
-            <p>1. Si no se abrió la ventana de WhatsApp automáticamente, verifica los bloqueadores de ventanas emergentes.</p>
+            <p>1. En el chat de WhatsApp (+504 8876-1389), envía el mensaje prellenado y adjunta el archivo PDF descargado si deseas compartir el catálogo visual de tu pedido.</p>
             <p>2. Conserva tu número de pedido <strong>{sentOrderCode}</strong> para cualquier seguimiento.</p>
           </div>
 
@@ -175,6 +191,23 @@ export const Cart = () => {
           <span className="hidden sm:inline">Continuar Comprando</span>
         </Link>
       </div>
+
+      {/* Aviso si algún precio se actualizó en la base de datos mientras estaba en el carrito */}
+      {priceUpdateNotice && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-950/80 border border-amber-700/80 text-amber-200 text-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>{priceUpdateNotice}</span>
+          </div>
+          <button
+            onClick={dismissPriceNotice}
+            className="text-amber-300 hover:text-white p-1"
+            aria-label="Cerrar aviso"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {errorMessage && (
         <div className="mb-6 p-4 rounded-xl bg-rose-950/80 border border-rose-800 text-rose-200 text-xs flex items-center gap-2">

@@ -1,50 +1,137 @@
-import React, { useState } from 'react';
-import { 
-  Footprints, 
-  Search, 
-  Plus, 
+import React, { useState, useEffect } from 'react';
+import {
+  Footprints,
+  Search,
+  Plus,
   ExternalLink,
   Edit2,
-  Trash2
+  Trash2,
+  Copy,
+  Eye,
+  Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import { useCart } from '../../context/CartContext';
 import { formatCurrency } from '../../services/whatsappService';
 import { Link } from 'react-router-dom';
+import { ProductFormModal, ProductViewModal } from '../../components/admin/ProductFormModal';
+
+const QuickNumberField = ({ initialValue, onSave, step = '1', min = '0' }) => {
+  const [val, setVal] = useState(String(initialValue ?? ''));
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setVal(String(initialValue ?? ''));
+  }, [initialValue]);
+
+  const commit = async () => {
+    const num = Number(val);
+    if (isNaN(num) || num < 0 || num === Number(initialValue)) {
+      setVal(String(initialValue ?? ''));
+      return;
+    }
+    setBusy(true);
+    try {
+      await onSave(num);
+    } catch {
+      setVal(String(initialValue ?? ''));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <input
+        type="number"
+        step={step}
+        min={min}
+        value={val}
+        disabled={busy}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.target.blur();
+          }
+        }}
+        className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-700 text-xs font-bold text-white focus:outline-none focus:border-white disabled:opacity-50"
+      />
+      {busy && (
+        <Loader2 className="w-3 h-3 text-white animate-spin absolute right-2 top-1/2 -translate-y-1/2" />
+      )}
+    </div>
+  );
+};
 
 export const TenisAdmin = () => {
-  const { products, updateProduct } = useProducts();
+  const { products, updateProduct, deleteProduct, duplicateProduct } = useProducts();
   const { showToast } = useCart();
   const [search, setSearch] = useState('');
 
+  // Estados de modales
+  const [formModalOpen, setFormModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [viewingProduct, setViewingProduct] = useState(null);
+  const [confirmDeleteProduct, setConfirmDeleteProduct] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const tenis = products.filter((p) => p.category === 'tenis');
 
-  const filteredTenis = tenis.filter((t) =>
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.brand.toLowerCase().includes(search.toLowerCase()) ||
-    t.sku.toLowerCase().includes(search.toLowerCase())
+  const filteredTenis = tenis.filter(
+    (t) =>
+      t.name?.toLowerCase().includes(search.toLowerCase()) ||
+      t.brand?.toLowerCase().includes(search.toLowerCase()) ||
+      t.sku?.toLowerCase().includes(search.toLowerCase())
   );
 
   const handlePriceChange = async (id, newPrice) => {
-    const val = Number(newPrice);
-    if (!isNaN(val) && val >= 0) {
-      await updateProduct(id, { price: val });
-      showToast('Precio actualizado');
+    try {
+      await updateProduct(id, { price: newPrice });
+      showToast('Producto actualizado correctamente', 'success');
+    } catch (err) {
+      showToast(err.message || 'No se pudieron guardar los cambios.', 'error');
+      throw err;
     }
   };
 
   const handleStockChange = async (id, newStock) => {
-    const val = Number(newStock);
-    if (!isNaN(val) && val >= 0) {
-      const status = val === 0 ? 'sold_out' : 'available';
-      await updateProduct(id, { stock: val, status });
-      showToast('Stock actualizado');
+    try {
+      const status = newStock === 0 ? 'sold_out' : 'available';
+      await updateProduct(id, { stock: newStock, status });
+      showToast('Inventario actualizado correctamente', 'success');
+    } catch (err) {
+      showToast(err.message || 'No se pudieron guardar los cambios.', 'error');
+      throw err;
+    }
+  };
+
+  const handleDuplicate = async (id) => {
+    try {
+      const cloned = await duplicateProduct(id);
+      if (cloned) showToast(`Tenis duplicado como "${cloned.name}"`, 'success');
+    } catch (err) {
+      showToast(err.message || 'No se pudo duplicar el producto.', 'error');
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDeleteProduct || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteProduct(confirmDeleteProduct.id);
+      showToast('Tenis eliminado del catálogo', 'info');
+      setConfirmDeleteProduct(null);
+    } catch (err) {
+      showToast(err.message || 'Error al eliminar el producto.', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -56,17 +143,20 @@ export const TenisAdmin = () => {
             Catálogo de Tenis & Sneakers ({tenis.length})
           </h1>
           <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-            Control de marcas abiertas (Nike, Jordan, Yeezy, New Balance), tallas y stock
+            Administra modelos, marcas (Nike, Jordan, Yeezy, New Balance, etc.), tallas, precios y fotografías
           </p>
         </div>
 
-        <Link
-          to="/admin/productos?new=true"
-          className="px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md"
+        <button
+          onClick={() => {
+            setEditingProduct(null);
+            setFormModalOpen(true);
+          }}
+          className="px-5 py-3 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shrink-0"
         >
           <Plus className="w-4 h-4" />
           <span>Agregar Tenis</span>
-        </Link>
+        </button>
       </div>
 
       {/* Buscador Fijo (Sticky) */}
@@ -78,18 +168,10 @@ export const TenisAdmin = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar tenis por modelo, marca o SKU..."
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-zinc-600 transition-colors shadow-inner"
+              placeholder="Buscar tenis por modelo, marca o código SKU..."
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-white placeholder-zinc-500 text-xs focus:outline-none focus:border-zinc-600 transition-colors"
             />
           </div>
-          <Link
-            to="/admin/productos?new=true"
-            className="sm:hidden px-3.5 py-2.5 rounded-xl bg-white text-zinc-950 font-bold text-xs shrink-0 flex items-center justify-center gap-1 shadow-md hover:bg-zinc-200 transition-colors"
-            title="Agregar Tenis"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nuevo</span>
-          </Link>
         </div>
       </div>
 
@@ -112,7 +194,7 @@ export const TenisAdmin = () => {
                 <Link
                   to={`/producto/${sneaker.slug}`}
                   target="_blank"
-                  className="absolute bottom-2 right-2 p-2 rounded-lg bg-zinc-950/80 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute bottom-2 right-2 p-2 rounded-lg bg-zinc-950/85 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Ver en tienda"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -130,7 +212,10 @@ export const TenisAdmin = () => {
               {/* Tallas disponibles */}
               <div className="mt-2 flex flex-wrap gap-1">
                 {sneaker.sizes?.map((sz) => (
-                  <span key={sz} className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] font-semibold text-zinc-300">
+                  <span
+                    key={sz}
+                    className="px-1.5 py-0.5 rounded bg-zinc-800 text-[10px] font-semibold text-zinc-300"
+                  >
                     {sz}
                   </span>
                 ))}
@@ -138,42 +223,127 @@ export const TenisAdmin = () => {
             </div>
 
             {/* Controles Rápidos de Precio y Stock */}
-            <div className="space-y-2 pt-2 border-t border-zinc-800/80">
+            <div className="space-y-2.5 pt-2 border-t border-zinc-800/80">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-0.5">Precio (L.)</label>
-                  <input
-                    type="number"
-                    step="1"
-                    defaultValue={sneaker.price}
-                    onBlur={(e) => handlePriceChange(sneaker.id, e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg bg-zinc-950 border border-zinc-700 text-xs font-bold text-white focus:outline-none focus:border-white"
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-0.5">
+                    Precio (L.)
+                  </label>
+                  <QuickNumberField
+                    initialValue={sneaker.price}
+                    step="0.01"
+                    onSave={(val) => handlePriceChange(sneaker.id, val)}
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-0.5">Stock</label>
-                  <input
-                    type="number"
-                    min="0"
-                    defaultValue={sneaker.stock}
-                    onBlur={(e) => handleStockChange(sneaker.id, e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg bg-zinc-950 border border-zinc-700 text-xs font-bold text-white focus:outline-none focus:border-white"
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase block mb-0.5">
+                    Stock
+                  </label>
+                  <QuickNumberField
+                    initialValue={sneaker.stock}
+                    step="1"
+                    onSave={(val) => handleStockChange(sneaker.id, val)}
                   />
                 </div>
               </div>
 
-              <div className="pt-1 flex items-center justify-between text-xs">
-                <span className="text-zinc-400 text-[11px]">Subtotal valorizado:</span>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-zinc-400 text-[11px]">Valor en stock:</span>
                 <span className="font-bold text-white">
                   {formatCurrency(sneaker.price * sneaker.stock)}
                 </span>
               </div>
-            </div>
 
+              {/* Acciones completas */}
+              <div className="pt-2 border-t border-zinc-800/60 flex items-center justify-between gap-1.5">
+                <button
+                  onClick={() => {
+                    setEditingProduct(sneaker);
+                    setFormModalOpen(true);
+                  }}
+                  className="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-zinc-200 text-zinc-950 font-extrabold text-[11px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Editar Todo</span>
+                </button>
+
+                <button
+                  onClick={() => setViewingProduct(sneaker)}
+                  className="p-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors"
+                  title="Ver detalles"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  onClick={() => handleDuplicate(sneaker.id)}
+                  className="p-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-white transition-colors"
+                  title="Duplicar tenis"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+
+                <button
+                  onClick={() => setConfirmDeleteProduct(sneaker)}
+                  className="p-2 rounded-xl bg-zinc-950 hover:bg-rose-950/60 border border-zinc-800 hover:border-rose-800 text-zinc-400 hover:text-rose-400 transition-colors"
+                  title="Eliminar tenis"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
           </div>
         ))}
       </div>
 
+      {/* Modal Crear / Editar */}
+      <ProductFormModal
+        isOpen={formModalOpen}
+        onClose={() => setFormModalOpen(false)}
+        editingProduct={editingProduct}
+        defaultCategory="tenis"
+      />
+
+      {/* Modal Ver Detalles */}
+      <ProductViewModal
+        product={viewingProduct}
+        isOpen={Boolean(viewingProduct)}
+        onClose={() => setViewingProduct(null)}
+        onEdit={(prod) => {
+          setEditingProduct(prod);
+          setFormModalOpen(true);
+        }}
+        onDuplicate={(id) => handleDuplicate(id)}
+      />
+
+      {/* Modal Confirmar Eliminación */}
+      {confirmDeleteProduct && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-3xl p-6 space-y-4 text-center shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-rose-950/80 border border-rose-800 text-rose-400 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="font-extrabold text-white text-base">¿Eliminar estos tenis?</h3>
+            <p className="text-xs text-zinc-300 font-semibold">{confirmDeleteProduct.name}</p>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setConfirmDeleteProduct(null)}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 text-xs font-bold uppercase"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 text-white text-xs font-bold uppercase hover:bg-rose-500 disabled:opacity-50"
+              >
+                {deleting ? 'Borrando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

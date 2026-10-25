@@ -23,6 +23,8 @@ import { Dashboard } from './pages/admin/Dashboard';
 import { ProductsAdmin } from './pages/admin/ProductsAdmin';
 import { GorrasAdmin } from './pages/admin/GorrasAdmin';
 import { TenisAdmin } from './pages/admin/TenisAdmin';
+import { CategoriesAdmin } from './pages/admin/CategoriesAdmin';
+import { InventoryAdmin } from './pages/admin/InventoryAdmin';
 import { SettingsAdmin } from './pages/admin/SettingsAdmin';
 
 function App() {
@@ -54,6 +56,8 @@ function App() {
                   <Route path="productos" element={<ProductsAdmin />} />
                   <Route path="gorras" element={<GorrasAdmin />} />
                   <Route path="tenis" element={<TenisAdmin />} />
+                  <Route path="categorias" element={<CategoriesAdmin />} />
+                  <Route path="inventario" element={<InventoryAdmin />} />
                   <Route path="configuracion" element={<SettingsAdmin />} />
                 </Route>
               </Route>

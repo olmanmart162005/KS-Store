@@ -69,58 +69,55 @@ VITE_STORE_ADDRESS=Honduras
 
 ## 🗄️ Configuración de la Base de Datos (Supabase)
 
-Si deseas conectar el proyecto a la nube con Supabase, hemos incluido todos los scripts listos en la carpeta `database/`:
+La base de datos de **Supabase (PostgreSQL)** es la fuente principal y permanente de los productos, categorías y ajustes de la tienda. Hemos incluido todos los scripts listos en la carpeta `database/`:
 
 1. Ve a tu proyecto en [Supabase](https://supabase.com).
 2. Entra a la sección **SQL Editor**.
-3. Ejecuta los archivos en este orden:
+3. Si estás instalando desde cero, ejecuta:
    - `database/schema.sql` (Crea tablas e índices de categorías, productos, tallas, colores, órdenes y perfiles)
    - `database/policies.sql` (Aplica políticas de seguridad RLS)
    - `database/storage.sql` (Crea y configura el bucket público `products` en Supabase Storage)
    - `database/seed.sql` (Inserta categorías y los 51 productos iniciales con las 43 fotos reales)
-4. Agrega tu `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` a tu archivo `.env`.
+4. **Si ya tienes la base de datos creada**, ejecuta únicamente la migración segura:
+   - `database/migrations/001_fix_persistence_and_schema.sql` (Agrega columnas `model` y `attributes`, crea trigger `updated_at`, inserta los 8 modelos de tenis faltantes sin tocar tus gorras existentes, pobla tallas, confirma el correo del administrador y activa Supabase Realtime).
+5. Agrega tu `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` a tu archivo `.env`.
 
-### Cómo Crear tu Primer Usuario Administrador en Supabase
+### Autenticación del Administrador en Supabase
 
-1. En Supabase ve a **Authentication** > **Users** > **Add user**.
-2. Ingresa correo y contraseña (ejemplo: `admin@ksstore.com`).
-3. Copia el `User UID` generado y ejecuta en el **SQL Editor**:
-   ```sql
-   INSERT INTO profiles (id, email, role)
-   VALUES ('TU_USER_UID_AQUI', 'admin@ksstore.com', 'admin')
-   ON CONFLICT (id) DO UPDATE SET role = 'admin';
-   ```
+Para que las políticas de seguridad RLS (`TO authenticated`) permitan guardar cambios permanentemente en PostgreSQL, debes iniciar sesión con un usuario registrado en **Supabase Authentication**:
 
-> **Nota:** La aplicación también incluye acceso administrativo maestro predeterminado para pruebas inmediatas:
-> - **Correo:** `admin@ksstore.com`
-> - **Contraseña:** `ksstore2026`
+1. En Supabase ve a **Authentication** > **Users**.
+2. Utiliza tu cuenta oficial (`sauladmin@ksstore.org`) o crea un usuario administrador con **Auto Confirm User** activado.
+3. El script `database/migrations/001_fix_persistence_and_schema.sql` se encarga automáticamente de confirmar el correo y asignarle `role = 'admin'` en la tabla `profiles`.
 
 ---
 
-## 🛒 Flujo del Carrito y Pedido por WhatsApp
+## 🛒 Flujo del Carrito y Pedido por WhatsApp + PDF Ilustrado
 
 El cliente disfruta de una experiencia fluida de compra:
 1. Navega por el catálogo o colecciones de gorras y tenis.
 2. Selecciona su talla y color con validación previa.
-3. Agrega productos al carrito con notificación Toast.
+3. Agrega productos al carrito con notificación Toast y sincronización automática si un precio cambia en tiempo real.
 4. Puede revisar su carrito en cualquier momento desde el botón del Header o en `/carrito`.
 5. Modifica cantidades con actualización instantánea de subtotales.
-6. Opcionalmente completa su nombre y teléfono.
+6. Opcionalmente completa su nombre, teléfono y dirección.
 7. Al presionar **Enviar Pedido por WhatsApp**:
    - Se muestra un modal de resumen de confirmación con el código único del pedido (`KS-YYYYMMDD-XXX`).
-   - Se abre WhatsApp con destino al número oficial **+504 8876-1389** con todos los productos desglosados en **un solo mensaje estructurado**.
-   - Se limpia el carrito de forma segura y se muestra la pantalla de confirmación.
+   - Se abre WhatsApp directo al número oficial **+504 8876-1389** con todos los productos desglosados y enlaces a las fotografías.
+   - Se descarga automáticamente un **PDF ilustrado con las fotografías de los productos** seleccionados.
 
 ---
 
 ## 🛡️ Panel Administrativo (`/admin`)
 
 Accediendo desde `/admin/login`:
-- **Dashboard:** Métricas en tiempo real de productos totales, gorras, tenis, disponibilidad en stock y destacados.
-- **Productos:** CRUD completo (Crear, Editar, Eliminar y Duplicar productos con carga de imágenes).
-- **Gorras:** Gestión rápida visual de las 43 fotos de exhibición con edición inline de precios y stock.
-- **Tenis:** Gestión abierta de cualquier marca de calzado, tallas y variantes.
-- **Configuración:** Personalización del número de WhatsApp, enlaces sociales, banners y textos del Hero.
+- **Dashboard:** Estadísticas reales calculadas directamente desde la base de datos (total de productos, gorras, tenis, unidades en inventario, valor total del inventario en Lempiras, agotados y por agotarse).
+- **Productos (`/admin/productos`):** CRUD completo (Ver detalles, Editar todos los campos sin restricciones, Duplicar y Eliminar productos con subida a Supabase Storage y validación estricta de respuesta de base de datos).
+- **Gorras (`/admin/gorras`):** Gestión visual de gorras con edición rápida controlada de precios/stock y acceso al modal de edición completa.
+- **Tenis (`/admin/tenis`):** Gestión completa de calzado, marcas, modelos, tallas y variantes.
+- **Categorías (`/admin/categorias`):** Creación, edición y eliminación de categorías sincronizadas con Supabase.
+- **Inventario (`/admin/inventario`):** Control rápido de existencias, alertas de bajo stock (`<= 3`), agotados y valorización por producto.
+- **Configuración (`/admin/configuracion`):** Personalización permanente en Supabase de nombre de la tienda, número de WhatsApp, enlaces sociales, dirección y textos del Hero.
 
 ---
 

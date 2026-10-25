@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Package, 
-  Crown, 
-  Footprints, 
-  Settings, 
-  LogOut, 
-  Store, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Package,
+  Crown,
+  Footprints,
+  Tags,
+  Boxes,
+  Settings,
+  LogOut,
+  Store,
+  Menu,
   X,
   ExternalLink,
-  ShieldAlert
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Toast } from '../ui/Toast';
@@ -32,35 +34,36 @@ export const AdminLayout = () => {
     { label: 'Productos', path: '/admin/productos', icon: Package },
     { label: 'Gorras', path: '/admin/gorras', icon: Crown },
     { label: 'Tenis', path: '/admin/tenis', icon: Footprints },
+    { label: 'Categorías', path: '/admin/categorias', icon: Tags },
+    { label: 'Inventario', path: '/admin/inventario', icon: Boxes },
     { label: 'Configuración', path: '/admin/configuracion', icon: Settings },
   ];
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col md:flex-row">
-      
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex w-64 bg-zinc-950 border-r border-zinc-800 flex-col justify-between shrink-0 h-screen sticky top-0 p-5">
+      <aside className="hidden md:flex w-64 bg-zinc-950 border-r border-zinc-800/90 flex-col justify-between shrink-0 h-screen sticky top-0 p-5">
         <div className="space-y-6">
-          
           {/* Logo KS Store Admin */}
           <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center p-1 shadow-md">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center p-1 shadow-md shrink-0">
               <img src="/images/logo/logo.png" alt="KS Store" className="w-full h-full object-contain" />
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="font-extrabold text-base text-white tracking-tight block font-heading">
                 KS STORE
               </span>
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                Panel de Control
+              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Admin Conectado
               </span>
             </div>
           </div>
 
           <hr className="border-zinc-800/80" />
 
-          {/* Menú de Navegación (Sección 43) */}
-          <nav className="space-y-1.5">
+          {/* Menú de Navegación */}
+          <nav className="space-y-1">
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
@@ -84,6 +87,16 @@ export const AdminLayout = () => {
 
         {/* Footer del Sidebar */}
         <div className="pt-4 border-t border-zinc-800/80 space-y-2">
+          {user?.email && (
+            <div className="px-3 py-2 rounded-xl bg-zinc-900/70 border border-zinc-800/80 text-[11px]">
+              <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                <span>Sesión Activa</span>
+              </div>
+              <p className="text-zinc-400 truncate mt-0.5 font-mono">{user.email}</p>
+            </div>
+          )}
+
           <Link
             to="/"
             target="_blank"
@@ -91,7 +104,7 @@ export const AdminLayout = () => {
           >
             <div className="flex items-center gap-2">
               <Store className="w-4 h-4" />
-              <span>Ver Tienda</span>
+              <span>Ver Tienda Pública</span>
             </div>
             <ExternalLink className="w-3.5 h-3.5" />
           </Link>
@@ -123,9 +136,9 @@ export const AdminLayout = () => {
         </button>
       </header>
 
-      {/* Menú Móvil Desplegable (Fixed) */}
+      {/* Menú Móvil Desplegable */}
       {sidebarOpen && (
-        <div className="fixed inset-x-0 top-[53px] z-50 md:hidden bg-zinc-950/98 backdrop-blur-xl border-b border-zinc-800 p-4 space-y-2 shadow-2xl animate-in fade-in slide-in-from-top-2">
+        <div className="fixed inset-x-0 top-[53px] z-50 md:hidden bg-zinc-950/98 backdrop-blur-xl border-b border-zinc-800 p-4 space-y-1.5 shadow-2xl">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
@@ -134,7 +147,7 @@ export const AdminLayout = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider ${
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider ${
                   isActive ? 'bg-white text-zinc-950 shadow-md' : 'text-zinc-300 hover:bg-zinc-900'
                 }`}
               >
@@ -143,15 +156,21 @@ export const AdminLayout = () => {
               </Link>
             );
           })}
-          <div className="pt-2 border-t border-zinc-800 flex justify-between items-center text-xs">
-            <Link to="/" target="_blank" className="text-zinc-400 hover:text-white">Ver Tienda</Link>
-            <button onClick={handleLogout} className="text-rose-400 font-bold hover:text-rose-300">Cerrar Sesión</button>
+          <div className="pt-3 mt-2 border-t border-zinc-800 flex justify-between items-center text-xs px-1">
+            <Link to="/" target="_blank" className="text-zinc-300 hover:text-white font-semibold flex items-center gap-1">
+              <Store className="w-3.5 h-3.5" />
+              <span>Ver Tienda</span>
+            </Link>
+            <button onClick={handleLogout} className="text-rose-400 font-bold hover:text-rose-300 flex items-center gap-1">
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Cerrar Sesión</span>
+            </button>
           </div>
         </div>
       )}
 
       {/* Área de Contenido Principal */}
-      <main className="flex-1 p-4 sm:p-8 lg:p-10 min-w-0">
+      <main className="flex-1 p-4 sm:p-6 lg:p-10 min-w-0">
         <Outlet />
       </main>
 

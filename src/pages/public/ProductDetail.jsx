@@ -49,7 +49,7 @@ export const ProductDetail = () => {
       }
       setQuantity(1);
       setValidationError('');
-      window.scrollTo(0, 0);
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }
   }, [product, slug]);
 
@@ -98,28 +98,47 @@ export const ProductDetail = () => {
     sendProductQueryToWhatsApp(product, selectedSize, selectedColor);
   };
 
+  const handleGoBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate(`/${product.category || 'catalogo'}`);
+    }
+  };
+
   const discountPercent = product.compare_price && product.compare_price > product.price
     ? Math.round(((product.compare_price - product.price) / product.compare_price) * 100)
     : null;
 
   // Productos relacionados
   const relatedProducts = products
-    .filter((p) => p.category === product.category && p.id !== product.id)
+    .filter((p) => p.category === product.category && p.id !== product.id && p.status !== 'hidden')
     .slice(0, 4);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       
-      {/* Breadcrumb Navigation */}
-      <nav className="flex items-center gap-2 text-xs text-zinc-400 mb-8 overflow-x-auto whitespace-nowrap">
-        <Link to="/" className="hover:text-white transition-colors">Inicio</Link>
-        <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-        <Link to={`/${product.category}`} className="hover:text-white transition-colors capitalize">
-          {product.category_name || product.category}
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-        <span className="text-zinc-200 font-medium truncate max-w-xs">{product.name}</span>
-      </nav>
+      {/* Botón Volver + Breadcrumb Navigation */}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <button
+          type="button"
+          onClick={handleGoBack}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-bold text-white uppercase tracking-wider transition-colors cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Volver</span>
+        </button>
+
+        <nav className="flex items-center gap-2 text-xs text-zinc-400 overflow-x-auto whitespace-nowrap">
+          <Link to="/" className="hover:text-white transition-colors">Inicio</Link>
+          <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+          <Link to={`/${product.category}`} className="hover:text-white transition-colors capitalize">
+            {product.category_name || product.category}
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+          <span className="text-zinc-200 font-medium truncate max-w-xs">{product.name}</span>
+        </nav>
+      </div>
 
       {/* Grid Principal del Detalle */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">

@@ -13,19 +13,22 @@ import {
 } from 'lucide-react';
 import { useProducts } from '../../context/ProductsContext';
 import { ProductCard } from '../../components/ui/ProductCard';
-import { getWhatsAppNumber, getDisplayWhatsAppNumber } from '../../services/whatsappService';
+import { getWhatsAppNumber, getDisplayWhatsAppNumber, formatCurrency } from '../../services/whatsappService';
 
 export const Home = () => {
   const { products, settings } = useProducts();
   const whatsappNum = getWhatsAppNumber();
 
+  // Productos visibles (excluir ocultos)
+  const visibleProducts = products.filter((p) => p.status !== 'hidden');
+  const totalCapsCount = visibleProducts.filter((p) => p.category === 'gorras').length;
+
   // Filtrar destacados y nuevos
-  const featuredCaps = products.filter((p) => p.category === 'gorras' && p.featured).slice(0, 6);
-  const featuredSneakers = products.filter((p) => p.category === 'tenis').slice(0, 4);
-  const trendingDrops = products.filter((p) => p.is_new).slice(0, 8);
+  const featuredCaps = visibleProducts.filter((p) => p.category === 'gorras' && p.featured).slice(0, 8);
+  const featuredSneakers = visibleProducts.filter((p) => p.category === 'tenis').slice(0, 4);
 
   // Producto destacado para el showcase Hero (sincronizado dinámicamente)
-  const heroProduct = products.find((p) => p.sku === 'KS-G001') || products.find((p) => p.featured) || products[0];
+  const heroProduct = visibleProducts.find((p) => p.sku === 'KS-G001') || visibleProducts.find((p) => p.featured) || visibleProducts[0];
 
   return (
     <div className="space-y-20 sm:space-y-28 pb-16">
@@ -54,7 +57,9 @@ export const Home = () => {
               </h1>
 
               <p className="text-sm sm:text-base lg:text-lg text-zinc-400 max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
-                {settings.hero_subtitle || 'KS Store es tu tienda en línea de gorras, sneakers y moda urbana en Honduras. La selección más cotizada en gorras de diseñador, pedrería fina y calzado urbano con envíos a todo el país.'}
+                {settings.hero_subtitle && !settings.hero_subtitle.includes('sneakers y moda urbana de alto impacto')
+                  ? settings.hero_subtitle
+                  : 'KS Store es tu tienda en línea de gorras, tenis y moda urbana en Honduras. Con orgullo Triunfeño, te ofrecemos la selección más cotizada en gorras de diseñador, pedrería fina y calzado urbano con envíos a todo el país.'}
               </p>
 
               {/* Botones CTA Principales */}
@@ -80,12 +85,12 @@ export const Home = () => {
               {/* Estadísticas rápidas / Confianza */}
               <div className="pt-6 grid grid-cols-3 gap-4 border-t border-zinc-800/80 max-w-md mx-auto lg:mx-0 text-center lg:text-left">
                 <div>
-                  <div className="text-xl sm:text-2xl font-extrabold text-white font-heading">43+</div>
+                  <div className="text-xl sm:text-2xl font-extrabold text-white font-heading">{totalCapsCount}+</div>
                   <div className="text-[11px] text-zinc-500 uppercase tracking-wider">Gorras Reales</div>
                 </div>
                 <div>
                   <div className="text-xl sm:text-2xl font-extrabold text-white font-heading">100%</div>
-                  <div className="text-[11px] text-zinc-500 uppercase tracking-wider">Original & Drip</div>
+                  <div className="text-[11px] text-zinc-500 uppercase tracking-wider">Orgullo Triunfeño</div>
                 </div>
                 <div>
                   <div className="text-xl sm:text-2xl font-extrabold text-white font-heading">HN 🇭🇳</div>
@@ -123,7 +128,7 @@ export const Home = () => {
                     </p>
                     <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-800">
                       <span className="text-white font-extrabold text-sm">
-                        L. {Number(heroProduct?.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {formatCurrency(heroProduct?.price || 0)}
                       </span>
                       <Link
                         to={`/producto/${heroProduct?.slug || heroProduct?.id || 'gorra-rico-o-muerto-red-rhinestone'}`}
@@ -264,7 +269,7 @@ export const Home = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-amber-400 mb-1">
               <Crown className="w-3.5 h-3.5" />
-              <span>Showroom KS Store</span>
+              <span>Exhibición KS Store</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-heading">
               Gorras Destacadas
@@ -278,7 +283,7 @@ export const Home = () => {
             to="/gorras"
             className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-zinc-300 hover:text-white transition-colors"
           >
-            <span>Ver las 43 Gorras</span>
+            <span>Ver las {totalCapsCount} Gorras</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
@@ -297,13 +302,13 @@ export const Home = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-rose-400 mb-1">
               <Footprints className="w-3.5 h-3.5" />
-              <span>Streetwear Kicks</span>
+              <span>Calzado Urbano</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-white font-heading">
-              Tenis & Sneakers
+              Tenis y Calzado Urbano
             </h2>
             <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-              Las mejores siluetas urbanas con selección de tallas para armar tu outfit.
+              Las mejores siluetas urbanas con selección de tallas para armar tu estilo.
             </p>
           </div>
 

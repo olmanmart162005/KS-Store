@@ -10,13 +10,13 @@ export const About = () => {
       <div className="text-center max-w-3xl mx-auto space-y-4">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-bold uppercase tracking-widest text-zinc-300">
           <Flame className="w-3.5 h-3.5 text-rose-500" />
-          <span>Cultura Urbana & Streetwear</span>
+          <span>Moda Urbana • Orgullo Triunfeño</span>
         </div>
         <h1 className="text-4xl sm:text-5xl font-extrabold text-white font-heading">
           Sobre KS Store
         </h1>
         <p className="text-base sm:text-lg text-zinc-400 leading-relaxed">
-          Nacimos con una visión clara: traer la máxima expresión de la moda urbana, gorras de diseñador con pedrería y sneakers de colección a las calles de Honduras.
+          Nacimos con orgullo Triunfeño y una visión clara: llevar la máxima expresión de la moda urbana, gorras de diseñador con pedrería y calzado exclusivo a todo Honduras.
         </p>
       </div>
 
@@ -28,7 +28,7 @@ export const About = () => {
           </div>
           <h3 className="text-xl font-bold text-white font-heading">Exclusividad Real</h3>
           <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-            No vendemos réplicas genéricas ni productos masivos sin alma. Cada gorra cuenta con bordados tridimensionales, pedrería engarzada y materiales de alto gramaje.
+            No vendemos productos genéricos sin identidad. Cada gorra cuenta con bordados tridimensionales, pedrería engarzada y materiales de alto gramaje.
           </p>
         </div>
 
@@ -38,7 +38,7 @@ export const About = () => {
           </div>
           <h3 className="text-xl font-bold text-white font-heading">Fotografía 100% Auténtica</h3>
           <p className="text-xs sm:text-sm text-zinc-400 leading-relaxed">
-            Lo que ves en nuestro catálogo es exactamente lo que recibes en tus manos. Todas las imágenes de nuestras gorras son tomadas directamente en nuestro showroom.
+            Lo que ves en nuestro catálogo es exactamente lo que recibes en tus manos. Todas las imágenes de nuestras gorras son tomadas directamente en nuestra exhibición.
           </p>
         </div>
 

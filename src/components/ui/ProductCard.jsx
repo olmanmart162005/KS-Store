@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Eye, Check } from 'lucide-react';
 import { formatCurrency } from '../../services/whatsappService';
 import { useCart } from '../../context/CartContext';
 
 export const ProductCard = ({ product }) => {
   const { addToCart } = useCart();
+  const navigate = useNavigate();
   const [imgError, setImgError] = useState(false);
   const [addedRecently, setAddedRecently] = useState(false);
 
@@ -15,7 +16,7 @@ export const ProductCard = ({ product }) => {
 
     // Si tiene tallas complejas (ejemplo tenis), abrir detalle para elegir talla adecuadamente
     if (product.category === 'tenis' && product.sizes && product.sizes.length > 1) {
-      window.location.href = `/producto/${product.slug}`;
+      navigate(`/producto/${product.slug}`);
       return;
     }
 
