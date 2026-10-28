@@ -109,7 +109,21 @@ export const getAbsoluteProductUrl = (slug) => {
 };
 
 /**
- * Construye el mensaje estructurado de WhatsApp para un pedido (Sección 5 y 6)
+ * Convierte un código de pedido en su enlace directo de factura PDF con fotos
+ */
+export const getPublicOrderReportUrl = (orderCode) => {
+  if (!orderCode) return '';
+  const baseUrl =
+    typeof window !== 'undefined' &&
+    window.location?.origin &&
+    !window.location.origin.includes('localhost')
+      ? window.location.origin
+      : 'https://ks-store-0606.vercel.app';
+  return `${baseUrl}/pedido/${encodeURIComponent(orderCode)}`;
+};
+
+/**
+ * Construye el mensaje estructurado de WhatsApp para un pedido (con enlace directo al PDF)
  */
 export const generateWhatsAppOrderMessage = (
   cart,
@@ -118,9 +132,7 @@ export const generateWhatsAppOrderMessage = (
   options = {}
 ) => {
   const code = orderCode || generateOrderCode();
-  const pdfFileName =
-    options.pdfFileName || `KS-STORE-PEDIDO-${code.replace(/^KS-/i, '')}.pdf`;
-  const pdfPublicUrl = options.pdfUrl || '';
+  const pdfPublicUrl = options.pdfUrl || getPublicOrderReportUrl(code);
 
   let message = `Hola, KS Store. Quiero realizar el siguiente pedido.\n\n`;
   message += `*PEDIDO KS STORE*\n\n`;
@@ -167,10 +179,8 @@ export const generateWhatsAppOrderMessage = (
   message += `*Total estimado: ${formatCurrency(total)}.*\n\n`;
 
   if (pdfPublicUrl) {
-    message += `Reporte PDF del pedido: ${pdfPublicUrl}\n\n`;
+    message += `📄 *Factura PDF del pedido (con fotos):*\n${pdfPublicUrl}`;
   }
-
-  message += `Adjunto el reporte detallado del pedido (${pdfFileName}) para su revisión.`;
 
   return message;
 };

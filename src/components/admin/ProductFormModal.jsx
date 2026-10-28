@@ -226,7 +226,7 @@ export const ProductFormModal = ({
   editingProduct = null,
   defaultCategory = 'gorras',
 }) => {
-  const { addProduct, updateProduct, uploadImage, categories } = useProducts();
+  const { addProduct, updateProduct, uploadImage, categories, generateNextSku } = useProducts();
   const { showToast } = useCart();
 
   const buildInitialState = (prod, catDefault) => {
@@ -256,12 +256,15 @@ export const ProductFormModal = ({
     }
 
     const isTenis = catDefault === 'tenis';
+    const autoSku =
+      typeof generateNextSku === 'function' ? generateNextSku(catDefault || 'gorras') : '';
+
     return {
       name: '',
       brand: isTenis ? 'Nike' : 'New Era',
       model: '',
       category: catDefault || 'gorras',
-      sku: '',
+      sku: autoSku,
       price: '',
       compare_price: '',
       stock: '10',
@@ -294,6 +297,7 @@ export const ProductFormModal = ({
       setSaving(false);
       setNewGalleryUrl('');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, editingProduct, defaultCategory]);
 
   if (!isOpen) return null;
@@ -302,14 +306,45 @@ export const ProductFormModal = ({
     setFormData((prev) => {
       const updated = { ...prev, category: newCat };
       if (!editingProduct) {
-        if (newCat === 'tenis' && prev.sizes === 'Ajustable / Unitalla') {
-          updated.sizes = '38, 39, 40, 41, 42, 43';
-        } else if (newCat === 'gorras' && prev.sizes.includes('38')) {
-          updated.sizes = 'Ajustable / Unitalla';
+        if (typeof generateNextSku === 'function') {
+          updated.sku = generateNextSku(newCat);
+        }
+        if (newCat === 'tenis') {
+          if (prev.sizes === 'Ajustable / Unitalla') {
+            updated.sizes = '38, 39, 40, 41, 42, 43';
+          }
+          if (prev.brand === 'New Era') {
+            updated.brand = 'Nike';
+          }
+        } else if (newCat === 'gorras') {
+          if (prev.sizes.includes('38') || prev.sizes.includes('40')) {
+            updated.sizes = 'Ajustable / Unitalla';
+          }
+          if (prev.brand === 'Nike') {
+            updated.brand = 'New Era';
+          }
         }
       }
       return updated;
     });
+  };
+
+  const handleToggleSizeChip = (sizeValue) => {
+    const currentList = String(formData.sizes || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .filter((s) => s !== 'Ajustable / Unitalla');
+
+    const exists = currentList.includes(sizeValue);
+    const nextList = exists
+      ? currentList.filter((s) => s !== sizeValue)
+      : [...currentList, sizeValue].sort((a, b) => Number(a) - Number(b));
+
+    setFormData((prev) => ({
+      ...prev,
+      sizes: nextList.length > 0 ? nextList.join(', ') : sizeValue,
+    }));
   };
 
   const handleMainImageUpload = async (e) => {
@@ -586,10 +621,33 @@ export const ProductFormModal = ({
                   type="text"
                   value={formData.brand}
                   onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  placeholder="Ej: New Era, Rico o Muerto, Nike, Jordan..."
+                  placeholder={
+                    formData.category === 'tenis'
+                      ? 'Ej: Nike, Jordan, Adidas, New Balance...'
+                      : 'Ej: New Era, Rico o Muerto, 31 Hats...'
+                  }
                   required
                   className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-700 text-xs sm:text-sm text-white focus:outline-none focus:border-white"
                 />
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {(formData.category === 'tenis'
+                    ? ['Nike', 'Jordan', 'Adidas', 'New Balance', 'Yeezy', 'Puma', 'Converse']
+                    : ['New Era', 'Rico o Muerto', '31 Hats', 'Dandy Hats', 'Barbas Hats', 'JC Hats']
+                  ).map((brandName) => (
+                    <button
+                      key={brandName}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, brand: brandName })}
+                      className={`text-[10px] px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer ${
+                        formData.brand === brandName
+                          ? 'bg-white text-zinc-950'
+                          : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300'
+                      }`}
+                    >
+                      {brandName}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -746,7 +804,7 @@ export const ProductFormModal = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider block mb-1.5">
-                  Tallas Disponibles (Separadas por coma)
+                  Tallas Disponibles (Separadas por coma o selecciona abajo)
                 </label>
                 <input
                   type="text"
@@ -755,25 +813,56 @@ export const ProductFormModal = ({
                   placeholder="Ej: Ajustable / Unitalla o 38, 39, 40, 41, 42"
                   className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-700 text-xs sm:text-sm text-white focus:outline-none focus:border-white"
                 />
+                {formData.category === 'tenis' && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {['35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45'].map((sz) => {
+                      const activeSizes = String(formData.sizes || '')
+                        .split(',')
+                        .map((s) => s.trim());
+                      const isSelected = activeSizes.includes(sz);
+                      return (
+                        <button
+                          key={sz}
+                          type="button"
+                          onClick={() => handleToggleSizeChip(sz)}
+                          className={`text-[10px] w-7 h-7 rounded-lg font-bold transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-rose-600 text-white border border-rose-400'
+                              : 'bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          {sz}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, sizes: 'Ajustable / Unitalla' })}
-                    className="text-[10px] px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                    className="text-[10px] px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
                   >
                     + Unitalla (Gorras)
                   </button>
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, sizes: '38, 39, 40, 41, 42, 43' })}
-                    className="text-[10px] px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                    className="text-[10px] px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
                   >
                     + Tallas 38-43 (Tenis)
                   </button>
                   <button
                     type="button"
+                    onClick={() => setFormData({ ...formData, sizes: '36, 37, 38, 39, 40' })}
+                    className="text-[10px] px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
+                  >
+                    + Tallas 36-40 (Dama)
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setFormData({ ...formData, sizes: 'S, M, L, XL' })}
-                    className="text-[10px] px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                    className="text-[10px] px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 cursor-pointer"
                   >
                     + Ropa (S-XL)
                   </button>

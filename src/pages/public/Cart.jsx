@@ -90,7 +90,7 @@ export const Cart = () => {
     }
 
     setErrorMessage('');
-    setShowConfirmModal(true);
+    handleConfirmAndSend();
   };
 
   // Confirmación: valida importes, genera y descarga el PDF real con fotos, registra pedido y abre WhatsApp
@@ -572,10 +572,20 @@ export const Cart = () => {
             {/* Botón Principal (Sección 44.9) */}
             <button
               onClick={handleInitiateOrder}
-              className="w-full py-4 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all shadow-xl shadow-emerald-950/60 hover:scale-[1.01] active:scale-[0.99]"
+              disabled={generatingPdf}
+              className="w-full py-4 px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all shadow-xl shadow-emerald-950/60 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-60 cursor-pointer"
             >
-              <MessageSquare className="w-4 h-4" />
-              <span>Enviar Pedido por WhatsApp</span>
+              {generatingPdf ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Generando PDF y abriendo WhatsApp...</span>
+                </>
+              ) : (
+                <>
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Enviar Pedido por WhatsApp</span>
+                </>
+              )}
             </button>
 
             <div className="pt-2 text-[11px] text-zinc-400 text-center flex items-center justify-center gap-1.5">
@@ -596,10 +606,20 @@ export const Cart = () => {
         </div>
         <button
           onClick={handleInitiateOrder}
-          className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 active:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg"
+          disabled={generatingPdf}
+          className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 active:bg-emerald-500 text-white font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg disabled:opacity-60"
         >
-          <MessageSquare className="w-4 h-4" />
-          <span>Enviar Pedido por WhatsApp</span>
+          {generatingPdf ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Generando PDF y abriendo WhatsApp...</span>
+            </>
+          ) : (
+            <>
+              <MessageSquare className="w-4 h-4" />
+              <span>Enviar Pedido por WhatsApp</span>
+            </>
+          )}
         </button>
       </div>
 

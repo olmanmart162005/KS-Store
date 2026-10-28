@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { initialProducts, initialCategories, initialSettings } from '../data/initialProducts';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
@@ -8,6 +8,7 @@ const STORAGE_PRODUCTS_KEY = 'ks_store_custom_products';
 const STORAGE_SETTINGS_KEY = 'ks_store_custom_settings';
 const STORAGE_CATEGORIES_KEY = 'ks_store_custom_categories';
 const STORAGE_ORDERS_KEY = 'ks_store_orders_history';
+const STORAGE_DELETED_SKUS_KEY = 'ks_store_deleted_skus';
 
 const CATEGORY_UUID_MAP = {
   gorras: '11111111-1111-1111-1111-111111111111',
@@ -18,6 +19,91 @@ const CATEGORY_UUID_MAP = {
 const isUUID = (str) =>
   typeof str === 'string' &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+const arraysEqual = (a, b) => {
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (String(a[i]).trim() !== String(b[i]).trim()) return false;
+  }
+  return true;
+};
+
+/**
+ * Comprime y optimiza una imagen en el navegador antes de subirla a Supabase Storage
+ * para eliminar el lag de subida y renderizado sin perder nitidez visual.
+ */
+const optimizeImageFile = (file, maxDimension = 1280, quality = 0.85) => {
+  return new Promise((resolve) => {
+    if (
+      typeof window === 'undefined' ||
+      !file ||
+      !file.type.startsWith('image/') ||
+      file.type === 'image/gif' ||
+      file.size < 180 * 1024
+    ) {
+      resolve(file);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width <= maxDimension && height <= maxDimension && file.size < 350 * 1024) {
+        resolve(file);
+        return;
+      }
+
+      if (width > height && width > maxDimension) {
+        height = Math.round((height * maxDimension) / width);
+        width = maxDimension;
+      } else if (height > maxDimension) {
+        width = Math.round((width * maxDimension) / height);
+        height = maxDimension;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        resolve(file);
+        return;
+      }
+
+      ctx.drawImage(img, 0, 0, width, height);
+      const outputMime = file.type === 'image/png' ? 'image/webp' : 'image/jpeg';
+      const outputExt = outputMime === 'image/webp' ? 'webp' : 'jpg';
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob || blob.size >= file.size) {
+            resolve(file);
+            return;
+          }
+          const baseName = file.name.replace(/\.[^/.]+$/, '');
+          const optimizedFile = new File([blob], `${baseName}.${outputExt}`, {
+            type: outputMime,
+            lastModified: Date.now(),
+          });
+          resolve(optimizedFile);
+        },
+        outputMime,
+        quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file);
+    };
+
+    img.src = objectUrl;
+  });
+};
 
 export const ProductsProvider = ({ children }) => {
   const [products, setProducts] = useState(() => {
@@ -59,19 +145,32 @@ export const ProductsProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [syncError, setSyncError] = useState(null);
 
+  // Referencias estables para evitar bucles de re-ejecución y tormentas de Realtime
+  const categoriesRef = useRef(categories);
+  useEffect(() => {
+    categoriesRef.current = categories;
+  }, [categories]);
+
+  const lastLocalMutationRef = useRef(0);
+  const realtimeTimerRef = useRef(null);
+
   /**
    * Formatea un registro crudo de Supabase al modelo unificado del catálogo
+   * (Referencia 100% estable para evitar re-renders innecesarios)
    */
-  const formatDbProduct = useCallback((p, dbCats = categories) => {
+  const formatDbProduct = useCallback((p, dbCats) => {
+    const catsList = Array.isArray(dbCats) && dbCats.length > 0 ? dbCats : categoriesRef.current;
     const matchedCat =
       p.categories ||
-      dbCats.find((c) => c.id === p.category_id) ||
+      catsList.find((c) => c.id === p.category_id) ||
       (p.sku?.startsWith('KS-T')
         ? { slug: 'tenis', name: 'Tenis' }
         : { slug: 'gorras', name: 'Gorras' });
 
     const catSlug = matchedCat?.slug || 'gorras';
-    const catName = matchedCat?.name || (catSlug === 'tenis' ? 'Tenis' : catSlug === 'moda-urbana' ? 'Moda Urbana' : 'Gorras');
+    const catName =
+      matchedCat?.name ||
+      (catSlug === 'tenis' ? 'Tenis' : catSlug === 'moda-urbana' ? 'Moda Urbana' : 'Gorras');
 
     const sortedImages = Array.isArray(p.product_images)
       ? [...p.product_images]
@@ -107,9 +206,10 @@ export const ProductsProvider = ({ children }) => {
       category_name: catName,
       sku: p.sku || '',
       price: Number(p.price) || 0,
-      compare_price: p.compare_price !== null && p.compare_price !== undefined && Number(p.compare_price) > 0
-        ? Number(p.compare_price)
-        : null,
+      compare_price:
+        p.compare_price !== null && p.compare_price !== undefined && Number(p.compare_price) > 0
+          ? Number(p.compare_price)
+          : null,
       stock: Number(p.stock ?? 0),
       status: p.status || (Number(p.stock ?? 0) === 0 ? 'sold_out' : 'available'),
       featured: Boolean(p.featured),
@@ -117,23 +217,20 @@ export const ProductsProvider = ({ children }) => {
       is_sale: Boolean(p.is_sale),
       description: p.description || '',
       main_image: p.main_image,
-      gallery: gallery.length > 0 ? gallery : (seedFallback?.gallery || [p.main_image]),
+      gallery: gallery.length > 0 ? gallery : seedFallback?.gallery || [p.main_image],
       sizes:
         dbSizes.length > 0
           ? dbSizes
           : seedFallback?.sizes ||
             (catSlug === 'tenis' ? ['38', '39', '40', '41', '42', '43'] : ['Ajustable / Unitalla']),
-      colors:
-        dbColors.length > 0
-          ? dbColors
-          : seedFallback?.colors || ['Negro'],
+      colors: dbColors.length > 0 ? dbColors : seedFallback?.colors || ['Negro'],
       created_at: p.created_at || null,
       updated_at: p.updated_at || p.created_at || null,
     };
-  }, [categories]);
+  }, []);
 
   /**
-   * Consulta principal desde Supabase (Fuente de verdad permanente)
+   * Consulta principal desde Supabase en paralelo (Fuente de verdad permanente, sin zombies ni lag)
    */
   const fetchSupabaseData = useCallback(async (silent = false) => {
     if (!isSupabaseConfigured || !supabase) {
@@ -145,66 +242,65 @@ export const ProductsProvider = ({ children }) => {
     setSyncError(null);
 
     try {
-      // 1. Cargar categorías primero para mapear relaciones con precisión
-      const { data: dbCats, error: cError } = await supabase
-        .from('categories')
-        .select('*')
-        .order('order_index', { ascending: true });
+      // Ejecutar las 4 consultas en paralelo para máxima velocidad
+      const [catsRes, productsRes, settingsRes, ordersRes] = await Promise.all([
+        supabase.from('categories').select('*').order('order_index', { ascending: true }),
+        supabase
+          .from('products')
+          .select(`
+            *,
+            categories (id, name, slug),
+            product_images (image_url, order_index),
+            product_sizes (size, stock),
+            product_colors (color_name)
+          `)
+          .order('created_at', { ascending: true }),
+        supabase.from('store_settings').select('*').limit(1).maybeSingle(),
+        supabase.from('orders').select('*').order('created_at', { ascending: false }),
+      ]);
 
-      let activeCats = initialCategories;
-      if (!cError && dbCats && dbCats.length > 0) {
-        activeCats = dbCats;
-        setCategories(dbCats);
+      let activeCats = categoriesRef.current || initialCategories;
+      if (!catsRes.error && Array.isArray(catsRes.data) && catsRes.data.length > 0) {
+        activeCats = catsRes.data;
+        categoriesRef.current = catsRes.data;
+        setCategories(catsRes.data);
         try {
-          localStorage.setItem(STORAGE_CATEGORIES_KEY, JSON.stringify(dbCats));
+          localStorage.setItem(STORAGE_CATEGORIES_KEY, JSON.stringify(catsRes.data));
         } catch {
           // ignore
         }
       }
 
-      // 2. Cargar productos con todas sus tablas relacionadas
-      const { data: dbProducts, error: pError } = await supabase
-        .from('products')
-        .select(`
-          *,
-          categories (id, name, slug),
-          product_images (image_url, order_index),
-          product_sizes (size, stock),
-          product_colors (color_name)
-        `)
-        .order('created_at', { ascending: true });
-
-      if (pError) {
-        throw pError;
+      if (productsRes.error) {
+        throw productsRes.error;
       }
 
-      if (dbProducts && dbProducts.length > 0) {
-        const formatted = dbProducts.map((p) => formatDbProduct(p, activeCats));
-
-        // Verificar si faltan los 8 tenis iniciales en la BD (para que nunca desaparezcan del catálogo)
-        const dbSkus = new Set(formatted.map((item) => item.sku));
-        const dbSlugs = new Set(formatted.map((item) => item.slug));
-        const missingInitialTenis = initialProducts.filter(
-          (ip) => ip.category === 'tenis' && !dbSkus.has(ip.sku) && !dbSlugs.has(ip.slug)
-        );
-
-        const combined = [...formatted, ...missingInitialTenis];
-        setProducts(combined);
+      if (Array.isArray(productsRes.data)) {
+        // La base de datos es la única fuente de verdad (no re-inyectar productos eliminados)
+        let deletedSkus = new Set();
         try {
-          localStorage.setItem(STORAGE_PRODUCTS_KEY, JSON.stringify(combined));
+          const rawDeleted = localStorage.getItem(STORAGE_DELETED_SKUS_KEY);
+          if (rawDeleted) {
+            deletedSkus = new Set(JSON.parse(rawDeleted));
+          }
+        } catch {
+          // ignore
+        }
+
+        const formatted = productsRes.data
+          .map((p) => formatDbProduct(p, activeCats))
+          .filter((p) => !deletedSkus.has(p.sku) && !deletedSkus.has(p.id));
+
+        setProducts(formatted);
+        try {
+          localStorage.setItem(STORAGE_PRODUCTS_KEY, JSON.stringify(formatted));
         } catch {
           // ignore
         }
       }
 
-      // 3. Cargar configuración general de tienda
-      const { data: dbSettings, error: sError } = await supabase
-        .from('store_settings')
-        .select('*')
-        .limit(1)
-        .maybeSingle();
-
-      if (!sError && dbSettings) {
+      if (!settingsRes.error && settingsRes.data) {
+        const dbSettings = settingsRes.data;
         const normalizedSettings = {
           ...dbSettings,
           whatsapp_number:
@@ -225,15 +321,9 @@ export const ProductsProvider = ({ children }) => {
         }
       }
 
-      // 4. Cargar historial de pedidos (si existen permisos o sesión activa)
-      const { data: dbOrders, error: oError } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!oError && Array.isArray(dbOrders)) {
+      if (!ordersRes.error && Array.isArray(ordersRes.data)) {
+        const dbOrders = ordersRes.data;
         setOrders((prev) => {
-          // Combinar pedidos de la base de datos con cualquier pedido local aún no sincronizado
           const dbCodes = new Set(dbOrders.map((o) => o.order_code));
           const localOnly = prev.filter((lo) => lo.order_code && !dbCodes.has(lo.order_code));
           const merged = [...dbOrders, ...localOnly].sort(
@@ -255,29 +345,43 @@ export const ProductsProvider = ({ children }) => {
     }
   }, [formatDbProduct]);
 
-  // Carga inicial y suscripción en tiempo real a cambios en Supabase
+  // Carga inicial y suscripción en tiempo real a cambios externos en Supabase (con debounce anti-lag)
   useEffect(() => {
-    fetchSupabaseData();
+    fetchSupabaseData(false);
 
     if (!isSupabaseConfigured || !supabase) return;
+
+    const scheduleSilentSync = (isProductEvent = false) => {
+      // Si el cambio fue originado hace menos de 3 segundos por nuestra propia sesión, evitar recarga redundante
+      if (isProductEvent && Date.now() - lastLocalMutationRef.current < 3000) {
+        return;
+      }
+      if (realtimeTimerRef.current) {
+        clearTimeout(realtimeTimerRef.current);
+      }
+      realtimeTimerRef.current = setTimeout(() => {
+        fetchSupabaseData(true);
+      }, 650);
+    };
 
     const channel = supabase
       .channel('ks-store-realtime-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
-        fetchSupabaseData(true);
+        scheduleSilentSync(true);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => {
-        fetchSupabaseData(true);
+        scheduleSilentSync(false);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'store_settings' }, () => {
-        fetchSupabaseData(true);
+        scheduleSilentSync(false);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        fetchSupabaseData(true);
+        scheduleSilentSync(false);
       })
       .subscribe();
 
     return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [fetchSupabaseData]);
@@ -295,53 +399,100 @@ export const ProductsProvider = ({ children }) => {
   };
 
   /**
-   * Sincroniza tablas hijas (tallas, colores, galería) de un producto en Supabase
+   * Genera el siguiente código SKU disponible automáticamente (ej. KS-T009 o KS-G044)
+   */
+  const generateNextSku = useCallback(
+    (categorySlug = 'gorras') => {
+      const prefix = categorySlug === 'tenis' ? 'KS-T' : 'KS-G';
+      const existingNums = products
+        .map((p) => {
+          const sku = String(p.sku || '').toUpperCase();
+          if (!sku.startsWith(prefix)) return 0;
+          const numPart = parseInt(sku.slice(prefix.length).replace(/\D/g, ''), 10);
+          return Number.isFinite(numPart) ? numPart : 0;
+        })
+        .filter((n) => n > 0 && n < 9000);
+
+      const maxNum = existingNums.length > 0 ? Math.max(...existingNums) : 0;
+      const existingSet = new Set(products.map((p) => String(p.sku || '').toUpperCase()));
+
+      let nextNum = maxNum + 1;
+      let candidate = `${prefix}${String(nextNum).padStart(3, '0')}`;
+      while (existingSet.has(candidate)) {
+        nextNum++;
+        candidate = `${prefix}${String(nextNum).padStart(3, '0')}`;
+      }
+      return candidate;
+    },
+    [products]
+  );
+
+  /**
+   * Sincroniza tablas hijas (tallas, colores, galería) en PARALELO para eliminar el lag
    */
   const syncProductRelations = async (productId, { sizes, colors, gallery }) => {
     if (!isSupabaseConfigured || !supabase || !isUUID(productId)) return;
 
+    const tasks = [];
+
     // 1. Tallas
     if (Array.isArray(sizes)) {
-      await supabase.from('product_sizes').delete().eq('product_id', productId);
-      const cleanSizes = sizes.map((s) => String(s).trim()).filter(Boolean);
-      if (cleanSizes.length > 0) {
-        await supabase.from('product_sizes').insert(
-          cleanSizes.map((size) => ({
-            product_id: productId,
-            size,
-            stock: 5,
-          }))
-        );
-      }
+      tasks.push(
+        (async () => {
+          await supabase.from('product_sizes').delete().eq('product_id', productId);
+          const cleanSizes = sizes.map((s) => String(s).trim()).filter(Boolean);
+          if (cleanSizes.length > 0) {
+            await supabase.from('product_sizes').insert(
+              cleanSizes.map((size) => ({
+                product_id: productId,
+                size,
+                stock: 5,
+              }))
+            );
+          }
+        })()
+      );
     }
 
     // 2. Colores
     if (Array.isArray(colors)) {
-      await supabase.from('product_colors').delete().eq('product_id', productId);
-      const cleanColors = colors.map((c) => String(c).trim()).filter(Boolean);
-      if (cleanColors.length > 0) {
-        await supabase.from('product_colors').insert(
-          cleanColors.map((color_name) => ({
-            product_id: productId,
-            color_name,
-          }))
-        );
-      }
+      tasks.push(
+        (async () => {
+          await supabase.from('product_colors').delete().eq('product_id', productId);
+          const cleanColors = colors.map((c) => String(c).trim()).filter(Boolean);
+          if (cleanColors.length > 0) {
+            await supabase.from('product_colors').insert(
+              cleanColors.map((color_name) => ({
+                product_id: productId,
+                color_name,
+              }))
+            );
+          }
+        })()
+      );
     }
 
     // 3. Galería de imágenes
     if (Array.isArray(gallery)) {
-      await supabase.from('product_images').delete().eq('product_id', productId);
-      const cleanGallery = gallery.map((img) => String(img).trim()).filter(Boolean);
-      if (cleanGallery.length > 0) {
-        await supabase.from('product_images').insert(
-          cleanGallery.map((image_url, idx) => ({
-            product_id: productId,
-            image_url,
-            order_index: idx,
-          }))
-        );
-      }
+      tasks.push(
+        (async () => {
+          await supabase.from('product_images').delete().eq('product_id', productId);
+          const cleanGallery = gallery.map((img) => String(img).trim()).filter(Boolean);
+          if (cleanGallery.length > 0) {
+            await supabase.from('product_images').insert(
+              cleanGallery.map((image_url, idx) => ({
+                product_id: productId,
+                image_url,
+                order_index: idx,
+              }))
+            );
+          }
+        })()
+      );
+    }
+
+    if (tasks.length > 0) {
+      await Promise.all(tasks);
     }
   };
 
@@ -350,7 +501,9 @@ export const ProductsProvider = ({ children }) => {
    */
   const ensureAuthenticatedForWrite = async () => {
     if (!isSupabaseConfigured || !supabase) return true;
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session?.user) {
       throw new Error(
         'Tu sesión de administrador no está autenticada en Supabase. Cierra sesión e ingresa con tu correo y contraseña de Supabase (sauladmin@ksstore.org) para guardar cambios permanentes.'
@@ -360,7 +513,7 @@ export const ProductsProvider = ({ children }) => {
   };
 
   /**
-   * CREAR PRODUCTO (Guarda primero en Supabase y actualiza el estado con el registro confirmado)
+   * CREAR PRODUCTO (Guarda primero en Supabase en paralelo y actualiza el estado al instante)
    */
   const addProduct = async (productData) => {
     const baseSlug = (productData.slug || productData.name || 'producto')
@@ -374,9 +527,12 @@ export const ProductsProvider = ({ children }) => {
     const slugExistente = products.some((p) => p.slug === baseSlug);
     const finalSlug = slugExistente ? `${baseSlug}-${Math.floor(100 + Math.random() * 900)}` : baseSlug;
 
+    const rawInputSku = productData.sku?.trim();
+    const skuCollision = rawInputSku && products.some((p) => p.sku?.toLowerCase() === rawInputSku.toLowerCase());
     const finalSku =
-      productData.sku?.trim() ||
-      `KS-${productData.category === 'tenis' ? 'T' : 'G'}${Math.floor(100 + Math.random() * 899)}`;
+      !rawInputSku || skuCollision
+        ? generateNextSku(productData.category || 'gorras')
+        : rawInputSku;
 
     const price = Math.max(0, Number(productData.price) || 0);
     const compare_price =
@@ -390,9 +546,12 @@ export const ProductsProvider = ({ children }) => {
     const status = productData.status || (stock === 0 ? 'sold_out' : 'available');
     const category_id = resolveCategoryId(productData.category || 'gorras');
 
+    const defaultSizes =
+      productData.category === 'tenis' ? '38, 39, 40, 41, 42, 43' : 'Ajustable / Unitalla';
+
     const sizesArray = Array.isArray(productData.sizes)
       ? productData.sizes
-      : String(productData.sizes || 'Ajustable / Unitalla')
+      : String(productData.sizes || defaultSizes)
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean);
@@ -411,8 +570,9 @@ export const ProductsProvider = ({ children }) => {
 
     if (isSupabaseConfigured && supabase) {
       await ensureAuthenticatedForWrite();
+      lastLocalMutationRef.current = Date.now();
 
-      const dbInsertPayload = {
+      const baseInsertPayload = {
         name: productData.name.trim(),
         slug: finalSlug,
         description: productData.description?.trim() || '',
@@ -429,18 +589,47 @@ export const ProductsProvider = ({ children }) => {
         main_image: productData.main_image.trim(),
       };
 
-      const { data: insertedRow, error: insertError } = await supabase
+      const extendedInsertPayload = {
+        ...baseInsertPayload,
+        model: productData.model?.trim() || '',
+        attributes: productData.attributes || {},
+      };
+
+      let { data: insertedRow, error: insertError } = await supabase
         .from('products')
-        .insert(dbInsertPayload)
+        .insert(extendedInsertPayload)
         .select('*, categories(id, name, slug)')
         .single();
 
+      // Si la BD aún no tiene las columnas model/attributes, reintentar con el payload base
+      if (insertError && (insertError.code === '42703' || insertError.message?.includes('column'))) {
+        const retry = await supabase
+          .from('products')
+          .insert(baseInsertPayload)
+          .select('*, categories(id, name, slug)')
+          .single();
+        insertedRow = retry.data;
+        insertError = retry.error;
+      }
+
+      // Si hubo colisión de SKU/slug en BD, autogenerar sufijo único y reintentar una vez
+      if (insertError && insertError.code === '23505') {
+        const fallbackSku = `${finalSku}-${Math.floor(10 + Math.random() * 89)}`;
+        const fallbackSlug = `${finalSlug}-${Math.floor(100 + Math.random() * 899)}`;
+        const retryUnique = await supabase
+          .from('products')
+          .insert({
+            ...baseInsertPayload,
+            sku: fallbackSku,
+            slug: fallbackSlug,
+          })
+          .select('*, categories(id, name, slug)')
+          .single();
+        insertedRow = retryUnique.data;
+        insertError = retryUnique.error;
+      }
+
       if (insertError) {
-        if (insertError.code === '23505') {
-          throw new Error(
-            `Ya existe un producto con el código SKU "${finalSku}" o nombre similar. Usa un SKU diferente.`
-          );
-        }
         throw new Error(insertError.message || 'No se pudo guardar el producto en la base de datos.');
       }
 
@@ -450,7 +639,7 @@ export const ProductsProvider = ({ children }) => {
         );
       }
 
-      // Sincronizar tallas, colores y galería
+      // Sincronizar tallas, colores y galería en paralelo
       try {
         await syncProductRelations(insertedRow.id, {
           sizes: sizesArray,
@@ -461,17 +650,19 @@ export const ProductsProvider = ({ children }) => {
         console.warn('Aviso al sincronizar atributos secundarios:', relErr);
       }
 
+      lastLocalMutationRef.current = Date.now();
+
       const confirmedProduct = {
         ...formatDbProduct(insertedRow, categories),
-        model: productData.model || '',
-        attributes: productData.attributes || {},
+        model: productData.model?.trim() || insertedRow.model || '',
+        attributes: productData.attributes || insertedRow.attributes || {},
         sizes: sizesArray,
         colors: colorsArray,
         gallery: galleryArray,
       };
 
       setProducts((prev) => {
-        const updated = [confirmedProduct, ...prev];
+        const updated = [confirmedProduct, ...prev.filter((p) => p.id !== confirmedProduct.id)];
         try {
           localStorage.setItem(STORAGE_PRODUCTS_KEY, JSON.stringify(updated));
         } catch {
@@ -521,7 +712,7 @@ export const ProductsProvider = ({ children }) => {
   };
 
   /**
-   * ACTUALIZAR PRODUCTO EXISTENTE (Verifica en Supabase y nunca simula éxito si falla)
+   * ACTUALIZAR PRODUCTO EXISTENTE (Ultra rápido: solo sincroniza tablas hijas si cambiaron)
    */
   const updateProduct = async (id, updatedFields) => {
     const existingProduct = products.find((p) => p.id === id);
@@ -588,6 +779,14 @@ export const ProductsProvider = ({ children }) => {
     }
     dbUpdatePayload.updated_at = new Date().toISOString();
 
+    const extendedUpdatePayload = { ...dbUpdatePayload };
+    if (updatedFields.model !== undefined) {
+      extendedUpdatePayload.model = updatedFields.model.trim();
+    }
+    if (updatedFields.attributes !== undefined) {
+      extendedUpdatePayload.attributes = updatedFields.attributes;
+    }
+
     const sizesArray =
       updatedFields.sizes !== undefined
         ? Array.isArray(updatedFields.sizes)
@@ -624,9 +823,60 @@ export const ProductsProvider = ({ children }) => {
 
     if (isSupabaseConfigured && supabase) {
       await ensureAuthenticatedForWrite();
+      lastLocalMutationRef.current = Date.now();
 
-      // Si el producto era un ítem local (ej. `tenis-1` aún no migrado a la BD), lo insertamos primero en la BD
-      if (!isUUID(id)) {
+      let updatedRow = null;
+      let updateError = null;
+
+      // 1. Intentar actualizar por UUID si el id es UUID válido
+      if (isUUID(id)) {
+        const res = await supabase
+          .from('products')
+          .update(extendedUpdatePayload)
+          .eq('id', id)
+          .select('*, categories(id, name, slug)')
+          .maybeSingle();
+
+        updatedRow = res.data;
+        updateError = res.error;
+
+        if (updateError && (updateError.code === '42703' || updateError.message?.includes('column'))) {
+          const retryBase = await supabase
+            .from('products')
+            .update(dbUpdatePayload)
+            .eq('id', id)
+            .select('*, categories(id, name, slug)')
+            .maybeSingle();
+          updatedRow = retryBase.data;
+          updateError = retryBase.error;
+        }
+      }
+
+      // 2. Si el id no era UUID o no se encontró por ID, buscar y actualizar por SKU o slug en Supabase
+      if (!updateError && !updatedRow && existingProduct.sku) {
+        const retrySku = await supabase
+          .from('products')
+          .update(dbUpdatePayload)
+          .eq('sku', existingProduct.sku)
+          .select('*, categories(id, name, slug)')
+          .maybeSingle();
+        updatedRow = retrySku.data;
+        updateError = retrySku.error;
+      }
+
+      if (!updateError && !updatedRow && existingProduct.slug) {
+        const retrySlug = await supabase
+          .from('products')
+          .update(dbUpdatePayload)
+          .eq('slug', existingProduct.slug)
+          .select('*, categories(id, name, slug)')
+          .maybeSingle();
+        updatedRow = retrySlug.data;
+        updateError = retrySlug.error;
+      }
+
+      // 3. Si realmente aún no existía en la BD (ej. producto local nuevo), insertarlo en la BD
+      if (!updateError && !updatedRow && !isUUID(id)) {
         const mergedForInsert = {
           ...existingProduct,
           ...updatedFields,
@@ -636,36 +886,13 @@ export const ProductsProvider = ({ children }) => {
           gallery: galleryArray,
         };
         const created = await addProduct(mergedForInsert);
-        // Remover el id no-UUID anterior
         setProducts((prev) => prev.filter((p) => p.id !== id));
         return created;
       }
 
-      // Actualizar registro por su UUID o por su SKU si el UUID cambió
-      let query = supabase
-        .from('products')
-        .update(dbUpdatePayload)
-        .eq('id', id)
-        .select('*, categories(id, name, slug)')
-        .maybeSingle();
-
-      let { data: updatedRow, error: updateError } = await query;
-
-      // Si no encontró por ID pero existe por SKU (por ejemplo tras una migración)
-      if (!updateError && !updatedRow && existingProduct.sku) {
-        const retry = await supabase
-          .from('products')
-          .update(dbUpdatePayload)
-          .eq('sku', existingProduct.sku)
-          .select('*, categories(id, name, slug)')
-          .maybeSingle();
-        updatedRow = retry.data;
-        updateError = retry.error;
-      }
-
       if (updateError) {
         if (updateError.code === '23505') {
-          throw new Error('El código SKU o slug ya está en uso por otro producto.');
+          throw new Error('El código SKU o nombre ya está en uso por otro producto.');
         }
         throw new Error(updateError.message || 'Error al guardar los cambios en Supabase.');
       }
@@ -676,23 +903,28 @@ export const ProductsProvider = ({ children }) => {
         );
       }
 
-      // Si se modificaron tallas, colores o galería, sincronizarlos
-      if (
-        updatedFields.sizes !== undefined ||
-        updatedFields.colors !== undefined ||
-        updatedFields.gallery !== undefined ||
-        updatedFields.main_image !== undefined
-      ) {
+      // Sincronizar en paralelo ÚNICAMENTE las tablas hijas que realmente cambiaron
+      const sizesChanged =
+        updatedFields.sizes !== undefined && !arraysEqual(sizesArray, existingProduct.sizes || []);
+      const colorsChanged =
+        updatedFields.colors !== undefined && !arraysEqual(colorsArray, existingProduct.colors || []);
+      const galleryChanged =
+        (updatedFields.gallery !== undefined || updatedFields.main_image !== undefined) &&
+        !arraysEqual(galleryArray, existingProduct.gallery || []);
+
+      if (sizesChanged || colorsChanged || galleryChanged) {
         try {
           await syncProductRelations(updatedRow.id, {
-            sizes: sizesArray,
-            colors: colorsArray,
-            gallery: galleryArray,
+            sizes: sizesChanged ? sizesArray : undefined,
+            colors: colorsChanged ? colorsArray : undefined,
+            gallery: galleryChanged ? galleryArray : undefined,
           });
         } catch (relErr) {
           console.warn('Aviso sincronizando relaciones del producto:', relErr);
         }
       }
+
+      lastLocalMutationRef.current = Date.now();
 
       const confirmedProduct = {
         ...existingProduct,
@@ -709,7 +941,9 @@ export const ProductsProvider = ({ children }) => {
       };
 
       setProducts((prev) => {
-        const updatedList = prev.map((p) => (p.id === id ? confirmedProduct : p));
+        const updatedList = prev.map((p) =>
+          p.id === id || p.id === updatedRow.id ? confirmedProduct : p
+        );
         try {
           localStorage.setItem(STORAGE_PRODUCTS_KEY, JSON.stringify(updatedList));
         } catch {
@@ -736,34 +970,20 @@ export const ProductsProvider = ({ children }) => {
   };
 
   /**
-   * ELIMINAR PRODUCTO PERMANENTEMENTE
+   * ELIMINAR PRODUCTO PERMANENTEMENTE (Con actualización instantánea sin lag y soporte por ID / SKU)
    */
   const deleteProduct = async (id) => {
     const existing = products.find((p) => p.id === id);
     if (!existing) return;
 
-    if (isSupabaseConfigured && supabase && isUUID(id)) {
-      await ensureAuthenticatedForWrite();
+    const previousProducts = products;
 
-      const { data: deletedRows, error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id)
-        .select('id');
-
-      if (error) {
-        throw new Error(error.message || 'No se pudo eliminar el producto de la base de datos.');
-      }
-
-      if (!deletedRows || deletedRows.length === 0) {
-        throw new Error(
-          'La base de datos no permitió eliminar el producto. Verifica tu sesión de administrador.'
-        );
-      }
-    }
-
+    // 1. Actualización optimista inmediata para cero lag en la interfaz
+    lastLocalMutationRef.current = Date.now();
     setProducts((prev) => {
-      const filtered = prev.filter((p) => p.id !== id);
+      const filtered = prev.filter(
+        (p) => p.id !== id && (!existing.sku || p.sku !== existing.sku)
+      );
       try {
         localStorage.setItem(STORAGE_PRODUCTS_KEY, JSON.stringify(filtered));
       } catch {
@@ -771,6 +991,70 @@ export const ProductsProvider = ({ children }) => {
       }
       return filtered;
     });
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await ensureAuthenticatedForWrite();
+
+        let deletedCount = 0;
+
+        if (isUUID(id)) {
+          const { data: deletedById, error: errById } = await supabase
+            .from('products')
+            .delete()
+            .eq('id', id)
+            .select('id');
+
+          if (errById) throw errById;
+          deletedCount += Array.isArray(deletedById) ? deletedById.length : 0;
+        }
+
+        // Si tenía un ID local o diferente UUID en caché, eliminar también por SKU o slug en Supabase
+        if (deletedCount === 0 && existing.sku) {
+          const { data: deletedBySku, error: errBySku } = await supabase
+            .from('products')
+            .delete()
+            .eq('sku', existing.sku)
+            .select('id');
+
+          if (errBySku) throw errBySku;
+          deletedCount += Array.isArray(deletedBySku) ? deletedBySku.length : 0;
+        }
+
+        if (deletedCount === 0 && existing.slug) {
+          const { data: deletedBySlug, error: errBySlug } = await supabase
+            .from('products')
+            .delete()
+            .eq('slug', existing.slug)
+            .select('id');
+
+          if (errBySlug) throw errBySlug;
+          deletedCount += Array.isArray(deletedBySlug) ? deletedBySlug.length : 0;
+        }
+
+        lastLocalMutationRef.current = Date.now();
+
+        // Registrar SKU/ID eliminado para que ningún fallback local lo vuelva a mostrar
+        try {
+          const rawDeleted = localStorage.getItem(STORAGE_DELETED_SKUS_KEY);
+          const deletedSet = new Set(rawDeleted ? JSON.parse(rawDeleted) : []);
+          if (existing.sku) deletedSet.add(existing.sku);
+          if (existing.id) deletedSet.add(existing.id);
+          localStorage.setItem(STORAGE_DELETED_SKUS_KEY, JSON.stringify([...deletedSet]));
+        } catch {
+          // ignore
+        }
+      } catch (err) {
+        // Revertir si la base de datos falló
+        setProducts(previousProducts);
+        try {
+          localStorage.setItem(STORAGE_PRODUCTS_KEY, JSON.stringify(previousProducts));
+        } catch {
+          // ignore
+        }
+        throw new Error(err.message || 'No se pudo eliminar el producto de la base de datos.');
+      }
+    }
   };
 
   /**
@@ -915,30 +1199,34 @@ export const ProductsProvider = ({ children }) => {
   };
 
   /**
-   * SUBIDA DE IMÁGENES A SUPABASE STORAGE
+   * SUBIDA DE IMÁGENES A SUPABASE STORAGE (Con compresión automática para cero lag)
    */
   const uploadImage = async (file) => {
     if (!file) throw new Error('No se seleccionó ningún archivo de imagen.');
 
-    // Validar tipo y tamaño (máx 8MB)
+    // Validar tipo y tamaño (máx 10MB antes de comprimir)
     if (!file.type.startsWith('image/')) {
       throw new Error('El archivo seleccionado debe ser una imagen válida (JPG, PNG, WEBP).');
     }
-    if (file.size > 8 * 1024 * 1024) {
-      throw new Error('La imagen supera el límite de 8 MB. Por favor elige una imagen más ligera.');
+    if (file.size > 10 * 1024 * 1024) {
+      throw new Error('La imagen supera el límite de 10 MB. Por favor elige una imagen más ligera.');
     }
+
+    // Optimizar tamaño y peso en el cliente antes de subir
+    const processedFile = await optimizeImageFile(file);
 
     if (isSupabaseConfigured && supabase) {
       await ensureAuthenticatedForWrite();
 
-      const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const fileExt = (processedFile.name.split('.').pop() || 'jpg').toLowerCase();
       const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'].includes(fileExt) ? fileExt : 'jpg';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 10)}.${safeExt}`;
       const filePath = `uploads/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('products')
-        .upload(filePath, file, {
+        .upload(filePath, processedFile, {
+          contentType: processedFile.type || 'image/jpeg',
           cacheControl: '3600',
           upsert: false,
         });
@@ -962,7 +1250,7 @@ export const ProductsProvider = ({ children }) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
       reader.onerror = () => reject(new Error('Error al procesar el archivo de imagen.'));
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(processedFile);
     });
   };
 
@@ -1170,6 +1458,7 @@ export const ProductsProvider = ({ children }) => {
         loading,
         syncError,
         refreshCatalog: fetchSupabaseData,
+        generateNextSku,
         addProduct,
         updateProduct,
         deleteProduct,

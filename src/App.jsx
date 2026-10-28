@@ -14,6 +14,7 @@ import { Home } from './pages/public/Home';
 import { Catalog } from './pages/public/Catalog';
 import { ProductDetail } from './pages/public/ProductDetail';
 import { Cart } from './pages/public/Cart';
+import { OrderReport } from './pages/public/OrderReport';
 import { About } from './pages/public/About';
 import { Contact } from './pages/public/Contact';
 
@@ -43,6 +44,7 @@ function App() {
                 <Route path="tenis" element={<Catalog initialCategory="tenis" />} />
                 <Route path="producto/:slug" element={<ProductDetail />} />
                 <Route path="carrito" element={<Cart />} />
+                <Route path="pedido/:orderCode" element={<OrderReport />} />
                 <Route path="nosotros" element={<About />} />
                 <Route path="contacto" element={<Contact />} />
               </Route>
